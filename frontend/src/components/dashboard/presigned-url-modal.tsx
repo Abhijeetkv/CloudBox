@@ -74,22 +74,20 @@ export function PresignedUrlModal({ open, onOpenChange }: PresignedUrlModalProps
                 <button
                   type="button"
                   onClick={() => setHttpMethod("GET")}
-                  className={`flex-1 rounded-md py-1 text-xs font-semibold transition-colors ${
-                    httpMethod === "GET"
+                  className={`flex-1 rounded-md py-1 text-xs font-semibold transition-colors ${httpMethod === "GET"
                       ? "bg-white text-sky-600 shadow-2xs"
                       : "text-slate-500 hover:text-slate-900"
-                  }`}
+                    }`}
                 >
                   GET (Download)
                 </button>
                 <button
                   type="button"
                   onClick={() => setHttpMethod("PUT")}
-                  className={`flex-1 rounded-md py-1 text-xs font-semibold transition-colors ${
-                    httpMethod === "PUT"
+                  className={`flex-1 rounded-md py-1 text-xs font-semibold transition-colors ${httpMethod === "PUT"
                       ? "bg-white text-sky-600 shadow-2xs"
                       : "text-slate-500 hover:text-slate-900"
-                  }`}
+                    }`}
                 >
                   PUT (Upload)
                 </button>

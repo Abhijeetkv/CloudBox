@@ -176,11 +176,11 @@ export default function UploadPage() {
     <AppShell>
       <div className="space-y-6 max-w-5xl mx-auto">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-            Upload Center
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Upload Files
           </h1>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Upload files to your cloud storage. Supports any file format with instant MinIO S3 sync.
+          <p className="mt-1 text-sm text-slate-500">
+            Add documents, images, media, and archives to your cloud drive.
           </p>
         </div>
 
@@ -192,8 +192,8 @@ export default function UploadPage() {
           onClick={() => fileInputRef.current?.click()}
           className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-10 text-center cursor-pointer transition-all ${
             isDragging
-              ? "border-blue-500 bg-blue-50/60 dark:bg-blue-950/30 scale-[0.99]"
-              : "border-zinc-300 hover:border-zinc-400 bg-white dark:border-zinc-800 dark:bg-zinc-900 shadow-sm"
+              ? "border-sky-500 bg-sky-50/70 scale-[0.99]"
+              : "border-slate-300 hover:border-slate-400 bg-white shadow-xs"
           }`}
         >
           <input
@@ -204,28 +204,28 @@ export default function UploadPage() {
             onChange={handleFileChange}
           />
 
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 mb-4 shadow-sm">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-50 text-sky-600 mb-4 shadow-2xs border border-sky-100">
             <Upload className="h-8 w-8" />
           </div>
 
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+          <h3 className="text-lg font-bold text-slate-900">
             Drop your files here, or{" "}
-            <span className="text-blue-600 dark:text-blue-400 underline underline-offset-2">
+            <span className="text-sky-600 underline underline-offset-2">
               browse
             </span>
           </h3>
-          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
-            Upload images, documents, audio, videos, or archives.
+          <p className="mt-1.5 text-xs text-slate-500 max-w-sm">
+            Supports any file format up to 50 GB per file.
           </p>
         </div>
 
         {/* Upload Queue Section */}
         {queue.length > 0 && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <Card className="bg-white border-slate-200 shadow-xs">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 border-b border-slate-100">
               <div>
-                <CardTitle className="text-base">Upload Queue</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-sm font-bold text-slate-900">Upload Queue</CardTitle>
+                <CardDescription className="text-xs text-slate-500">
                   {queue.length} file{queue.length > 1 ? "s" : ""} selected
                 </CardDescription>
               </div>
@@ -234,27 +234,27 @@ export default function UploadPage() {
                 {allCompleted ? (
                   <Button
                     onClick={() => router.push("/files")}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8"
                     size="sm"
                   >
-                    <FileCheck className="mr-2 h-4 w-4" />
-                    View In Files Explorer
+                    <FileCheck className="mr-1.5 h-3.5 w-3.5" />
+                    View In My Files
                   </Button>
                 ) : (
                   <Button
                     onClick={uploadAllFiles}
                     disabled={!hasPending || isUploadingAll}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    className="bg-sky-600 hover:bg-sky-700 text-white text-xs h-8"
                     size="sm"
                   >
                     {isUploadingAll ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                         Uploading All...
                       </>
                     ) : (
                       <>
-                        <Upload className="mr-2 h-4 w-4" />
+                        <Upload className="mr-1.5 h-3.5 w-3.5" />
                         Upload All
                       </>
                     )}
@@ -265,6 +265,7 @@ export default function UploadPage() {
                   <Button
                     variant="outline"
                     size="sm"
+                    className="text-xs h-8 border-slate-200 text-slate-700"
                     onClick={() => setQueue([])}
                   >
                     Clear Queue
@@ -273,22 +274,22 @@ export default function UploadPage() {
               </div>
             </CardHeader>
 
-            <CardContent>
-              <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+            <CardContent className="pt-3">
+              <div className="divide-y divide-slate-100">
                 {queue.map((item) => (
                   <div
                     key={item.id}
                     className="flex items-center justify-between py-3 gap-4"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-600 border border-slate-200">
                         <FileIcon className="h-5 w-5" />
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                        <p className="truncate text-xs font-semibold text-slate-900">
                           {item.file.name}
                         </p>
-                        <p className="text-xs text-zinc-500">
+                        <p className="text-[11px] text-slate-500">
                           {formatFileSize(item.file.size)} •{" "}
                           <span className="capitalize">
                             {getFileCategory(item.file.type)}
@@ -304,19 +305,19 @@ export default function UploadPage() {
 
                     <div className="flex items-center gap-2 shrink-0">
                       {item.status === "uploading" && (
-                        <div className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400">
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                        <div className="flex items-center gap-1.5 text-xs text-sky-600 font-medium">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           <span>Uploading...</span>
                         </div>
                       )}
                       {item.status === "success" && (
-                        <div className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                        <div className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
                           <CheckCircle2 className="h-4 w-4" />
                           <span>Uploaded</span>
                         </div>
                       )}
                       {item.status === "error" && (
-                        <div className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
+                        <div className="flex items-center gap-1 text-xs text-red-600">
                           <AlertCircle className="h-4 w-4" />
                           <span>Failed</span>
                         </div>
@@ -326,6 +327,7 @@ export default function UploadPage() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          className="text-xs h-7"
                           onClick={() => uploadSingleFile(item)}
                           disabled={isUploadingAll}
                         >
@@ -337,7 +339,7 @@ export default function UploadPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                          className="h-8 w-8 text-slate-400 hover:text-slate-600"
                           onClick={() => removeFileFromQueue(item.id)}
                         >
                           <X className="h-4 w-4" />
@@ -351,46 +353,46 @@ export default function UploadPage() {
           </Card>
         )}
 
-        {/* Feature Highlights / Info Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
-          <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 shadow-sm flex items-start gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400">
+        {/* Feature Highlights */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+          <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-xs flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
               <Zap className="h-4.5 w-4.5" />
             </div>
             <div>
-              <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Fast Parallel Streams
+              <h4 className="text-xs font-bold text-slate-900">
+                Fast Cloud Uploads
               </h4>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                Optimized multipart streaming directly into Go backend & MinIO object storage.
+              <p className="text-xs text-slate-500 mt-1">
+                Optimized multipart streaming with real-time transfer progress.
               </p>
             </div>
           </div>
 
-          <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 shadow-sm flex items-start gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
+          <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-xs flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
               <Shield className="h-4.5 w-4.5" />
             </div>
             <div>
-              <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Encrypted & Isolated
+              <h4 className="text-xs font-bold text-slate-900">
+                Private & Secure
               </h4>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                Files are strictly isolated by your user ID with unique cryptographic UUID keys.
+              <p className="text-xs text-slate-500 mt-1">
+                Your files are privately secured and accessible only to your account.
               </p>
             </div>
           </div>
 
-          <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 shadow-sm flex items-start gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-950/50 dark:text-purple-400">
+          <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-xs flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
               <FileCheck className="h-4.5 w-4.5" />
             </div>
             <div>
-              <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Automatic Categorization
+              <h4 className="text-xs font-bold text-slate-900">
+                Auto Organization
               </h4>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                MIME types are automatically parsed and cataloged in PostgreSQL and Redis cache.
+              <p className="text-xs text-slate-500 mt-1">
+                Files are automatically categorized into documents, media, and archives.
               </p>
             </div>
           </div>

@@ -28,7 +28,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col font-sans bg-slate-950 text-slate-900 selection:bg-sky-500 selection:text-white">
+      <body className="min-h-full flex flex-col font-sans bg-slate-50 text-slate-900 selection:bg-sky-500 selection:text-white">
         <Providers>{children}</Providers>
       </body>
     </html>

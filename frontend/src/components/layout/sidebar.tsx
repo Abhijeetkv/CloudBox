@@ -70,8 +70,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               <span className="text-base font-bold tracking-tight text-slate-900">
                 CloudBox
               </span>
-              <span className="rounded-full bg-sky-50 border border-sky-200/80 px-2 py-0.5 text-[10px] font-mono font-semibold text-sky-600">
-                v1.2 S3
+              <span className="rounded-full bg-sky-50 border border-sky-200/80 px-2 py-0.5 text-[10px] font-semibold text-sky-600">
+                Drive
               </span>
             </div>
           </Link>
@@ -123,8 +123,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           {/* Storage Quota Card */}
           <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
             <div className="flex items-center justify-between text-[11px] mb-1.5">
-              <span className="font-medium text-slate-500">Storage Quota</span>
-              <span className="font-mono font-semibold text-sky-600">{quotaPercent}%</span>
+              <span className="font-medium text-slate-600">Storage Used</span>
+              <span className="font-semibold text-sky-600">{quotaPercent}%</span>
             </div>
             <div className="h-1.5 w-full rounded-full bg-slate-200/80 overflow-hidden">
               <div
@@ -132,7 +132,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                 style={{ width: `${quotaPercent}%` }}
               />
             </div>
-            <div className="mt-1.5 flex items-center justify-between font-mono text-[10px] text-slate-400">
+            <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-500">
               <span>{totalGB} GB</span>
               <span>50.0 GB</span>
             </div>
@@ -146,10 +146,10 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               </div>
               <div className="min-w-0">
                 <p className="truncate text-xs font-semibold text-slate-900">
-                  {user?.email ? user.email.split("@")[0] : "Dev Architect"}
+                  {user?.email ? user.email.split("@")[0] : "User"}
                 </p>
-                <p className="truncate font-mono text-[10px] text-slate-400">
-                  prod-cluster-04
+                <p className="truncate text-[10px] text-slate-400">
+                  {user?.email || "Personal Drive"}
                 </p>
               </div>
             </div>

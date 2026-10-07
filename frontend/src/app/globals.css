@@ -13,11 +13,12 @@
 }
 
 .bg-dot-matrix {
-  background-color: #0b0f19;
-  background-image: radial-gradient(rgba(148, 163, 184, 0.15) 1.5px, transparent 1.5px);
-  background-size: 18px 18px;
+  background-color: #f8fafc;
+  background-image: radial-gradient(rgba(148, 163, 184, 0.25) 1px, transparent 1px);
+  background-size: 20px 20px;
 }
 
 body {
-  background-color: #0b0f19;
+  background-color: var(--background);
+  color: var(--foreground);
 }

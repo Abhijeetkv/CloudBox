@@ -17,7 +17,6 @@ import {
   Search,
   LayoutGrid,
   List,
-  Filter,
   ArrowUpDown,
   FileQuestion,
   X,
@@ -47,13 +46,11 @@ export default function FilesPage() {
   const filteredAndSortedFiles = useMemo(() => {
     return files
       .filter((file) => {
-        // Search filter
         const matchesSearch = file.filename
           .toLowerCase()
           .includes(searchQuery.toLowerCase().trim());
         if (!matchesSearch) return false;
 
-        // Category filter
         if (selectedCategory !== "all") {
           const cat = getFileCategory(file.mime_type);
           if (cat !== selectedCategory) return false;
@@ -92,16 +89,16 @@ export default function FilesPage() {
         {/* Header & Upload Button */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-              Files Explorer
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              My Files
             </h1>
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Browse, filter, preview, and download your stored files.
+            <p className="mt-1 text-sm text-slate-500">
+              Browse, search, preview, and download your stored files.
             </p>
           </div>
           <Button
             onClick={() => setUploadModalOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+            className="bg-sky-600 hover:bg-sky-700 text-white shadow-sm font-medium text-xs h-9 px-4"
           >
             <Upload className="mr-2 h-4 w-4" />
             Upload File
@@ -112,17 +109,17 @@ export default function FilesPage() {
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           {/* Search Input */}
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-zinc-400" />
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search files by name..."
-              className="pl-9 pr-9 bg-white dark:bg-zinc-900"
+              className="pl-9 pr-9 bg-white border-slate-200 text-xs h-9"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-3 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -132,12 +129,12 @@ export default function FilesPage() {
           {/* Sort & View Toggle */}
           <div className="flex items-center gap-2">
             <div className="relative flex items-center">
-              <ArrowUpDown className="absolute left-2.5 h-3.5 w-3.5 text-zinc-400 pointer-events-none" />
+              <ArrowUpDown className="absolute left-2.5 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortOption)}
                 aria-label="Sort files by"
-                className="h-10 rounded-lg border border-zinc-200 bg-white pl-8 pr-4 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                className="h-9 rounded-lg border border-slate-200 bg-white pl-8 pr-4 text-xs font-medium text-slate-700 shadow-2xs hover:bg-slate-50 focus:outline-none focus:ring-1 focus:ring-sky-500"
               >
                 <option value="date-desc">Newest first</option>
                 <option value="date-asc">Oldest first</option>
@@ -149,11 +146,11 @@ export default function FilesPage() {
             </div>
 
             {/* View Mode Toggle */}
-            <div className="flex items-center rounded-lg border border-zinc-200 bg-white p-1 dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="flex items-center rounded-lg border border-slate-200 bg-white p-0.5">
               <Button
                 variant={viewMode === "table" ? "secondary" : "ghost"}
                 size="icon"
-                className="h-8 w-8"
+                className={`h-8 w-8 ${viewMode === "table" ? "bg-slate-100 text-sky-600" : "text-slate-400"}`}
                 onClick={() => setViewMode("table")}
                 aria-label="Table view"
               >
@@ -162,7 +159,7 @@ export default function FilesPage() {
               <Button
                 variant={viewMode === "grid" ? "secondary" : "ghost"}
                 size="icon"
-                className="h-8 w-8"
+                className={`h-8 w-8 ${viewMode === "grid" ? "bg-slate-100 text-sky-600" : "text-slate-400"}`}
                 onClick={() => setViewMode("grid")}
                 aria-label="Grid view"
               >
@@ -185,10 +182,10 @@ export default function FilesPage() {
               <button
                 key={cat.key}
                 onClick={() => setSelectedCategory(cat.key)}
-                className={`whitespace-nowrap rounded-lg px-3 py-1.5 font-medium transition-colors ${
+                className={`whitespace-nowrap rounded-lg px-3 py-1.5 font-semibold transition-colors ${
                   selectedCategory === cat.key
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "bg-white text-zinc-600 hover:bg-zinc-100 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-800"
+                    ? "bg-sky-600 text-white shadow-2xs"
+                    : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
                 }`}
               >
                 {cat.label} ({count})
@@ -206,18 +203,18 @@ export default function FilesPage() {
             <Skeleton className="h-12 w-full rounded-lg" />
           </div>
         ) : error ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center text-red-600 dark:border-red-900 dark:bg-red-950/30 dark:text-red-400">
+          <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center text-red-600">
             Failed to load files from server.
           </div>
         ) : filteredAndSortedFiles.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-200 bg-white py-16 text-center dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-100 text-zinc-400 dark:bg-zinc-800">
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white py-16 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-50 text-slate-400 border border-slate-100">
               <FileQuestion className="h-6 w-6" />
             </div>
-            <h3 className="mt-4 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            <h3 className="mt-4 text-sm font-semibold text-slate-900">
               No files found
             </h3>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
+            <p className="mt-1 text-xs text-slate-500 max-w-sm">
               {searchQuery || selectedCategory !== "all"
                 ? "Try adjusting your search query or category filter."
                 : "Your storage is currently empty. Upload your first file!"}
@@ -226,7 +223,7 @@ export default function FilesPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-4"
+                className="mt-4 text-xs"
                 onClick={() => {
                   setSearchQuery("");
                   setSelectedCategory("all");
@@ -237,7 +234,7 @@ export default function FilesPage() {
             ) : (
               <Button
                 onClick={() => setUploadModalOpen(true)}
-                className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
+                className="mt-4 bg-sky-600 hover:bg-sky-700 text-white text-xs font-medium"
                 size="sm"
               >
                 <Upload className="mr-2 h-4 w-4" />

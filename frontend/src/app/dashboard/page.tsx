@@ -3,27 +3,28 @@
 import { useState, useMemo } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { useFiles, useDeleteFile, useDownloadFile } from "@/hooks/use-files";
-import { PresignedUrlModal } from "@/components/dashboard/presigned-url-modal";
-import { ApiDocsModal } from "@/components/dashboard/api-docs-modal";
 import { FileUploadModal } from "@/components/files/file-upload-modal";
 import { FilePreviewModal } from "@/components/files/file-preview-modal";
 import { Button } from "@/components/ui/button";
 import {
-  Zap,
-  BookOpen,
   UploadCloud,
-  Copy,
   Check,
   Download,
   Link2,
-  Info,
   Trash2,
+  Eye,
   FileArchive,
   FileCode,
   FileSpreadsheet,
   FileText,
-  Cpu,
+  FileImage,
+  FileVideo,
+  FileAudio,
   FolderOpen,
+  Files,
+  HardDrive,
+  ShieldCheck,
+  Cloud,
 } from "lucide-react";
 import type { FileItem } from "@/types";
 import { formatFileSize, formatDate, getFileCategory } from "@/lib/utils";
@@ -34,15 +35,12 @@ export default function DashboardPage() {
   const deleteMutation = useDeleteFile();
   const downloadMutation = useDownloadFile();
 
-  const [presignedModalOpen, setPresignedModalOpen] = useState(false);
-  const [apiDocsModalOpen, setApiDocsModalOpen] = useState(false);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
-
   const [activeTab, setActiveTab] = useState<"all" | "archives" | "documents" | "media">("all");
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
 
-  // Calculate real metrics from stored files
+  // Storage calculation
   const totalBytes = useMemo(() => {
     return realFiles.reduce((acc, f) => acc + f.size, 0);
   }, [realFiles]);
@@ -61,11 +59,15 @@ export default function DashboardPage() {
     });
   }, [realFiles, activeTab]);
 
-  const handleCopyUri = (uri: string) => {
-    navigator.clipboard.writeText(uri);
-    setCopiedKey(uri);
-    toast.success("S3 URI copied to clipboard");
-    setTimeout(() => setCopiedKey(null), 2000);
+  const handleCopyLink = (file: FileItem) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("cloudbox_token") || "" : "";
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+    const shareUrl = `${apiBase}/api/files/${file.id}/download${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+
+    navigator.clipboard.writeText(shareUrl);
+    setCopiedId(file.id);
+    toast.success("File link copied to clipboard");
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   const handleDeleteItem = (id: number) => {
@@ -78,216 +80,189 @@ export default function DashboardPage() {
 
   const renderFileIcon = (mime: string) => {
     const cat = getFileCategory(mime);
+    if (cat === "image") {
+      return (
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-50 text-sky-600 border border-sky-100">
+          <FileImage className="h-4.5 w-4.5" />
+        </div>
+      );
+    }
+    if (cat === "video") {
+      return (
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-50 text-purple-600 border border-purple-100">
+          <FileVideo className="h-4.5 w-4.5" />
+        </div>
+      );
+    }
+    if (cat === "audio") {
+      return (
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-pink-50 text-pink-600 border border-pink-100">
+          <FileAudio className="h-4.5 w-4.5" />
+        </div>
+      );
+    }
     if (cat === "archive") {
       return (
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-50 text-sky-600 border border-sky-100">
-          <FileArchive className="h-4 w-4" />
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50 text-amber-600 border border-amber-100">
+          <FileArchive className="h-4.5 w-4.5" />
         </div>
       );
     }
     if (cat === "document") {
       return (
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600 border border-amber-100">
-          <FileCode className="h-4 w-4" />
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600 border border-blue-100">
+          <FileCode className="h-4.5 w-4.5" />
         </div>
       );
     }
     if (cat === "spreadsheet") {
       return (
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100">
-          <FileSpreadsheet className="h-4 w-4" />
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100">
+          <FileSpreadsheet className="h-4.5 w-4.5" />
         </div>
       );
     }
     return (
-      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-50 text-slate-600 border border-slate-200">
-        <FileText className="h-4 w-4" />
+      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-50 text-slate-600 border border-slate-200">
+        <FileText className="h-4.5 w-4.5" />
       </div>
     );
   };
 
   return (
     <AppShell>
-      <div className="space-y-4 max-w-full">
+      <div className="space-y-6 max-w-full">
         {/* Top Header Row */}
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-mono text-xs font-semibold text-slate-400">
-              CLUSTER-US-EAST-1 •
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 font-mono text-[10px] font-bold text-emerald-700 tracking-wide">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              STREAM PIPELINE ENGAGED
-            </span>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+              Dashboard
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Welcome back! View, upload, and organize your files.
+            </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-                S3 Storage Topology
-              </h1>
-              <p className="font-mono text-xs text-slate-400 mt-0.5">
-                minio-edge.internal:9000
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPresignedModalOpen(true)}
-                className="h-8 gap-1.5 text-xs font-semibold text-slate-700 border-slate-200 hover:bg-slate-50 shadow-2xs"
-              >
-                <Zap className="h-3.5 w-3.5 text-sky-600" />
-                <span>New Presigned URL</span>
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setApiDocsModalOpen(true)}
-                className="h-8 gap-1.5 text-xs font-semibold text-slate-700 border-slate-200 hover:bg-slate-50 shadow-2xs"
-              >
-                <BookOpen className="h-3.5 w-3.5 text-slate-500" />
-                <span>View API Docs</span>
-              </Button>
-
-              <Button
-                size="sm"
-                onClick={() => setUploadModalOpen(true)}
-                className="h-8 gap-1.5 bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs shadow-sm px-3.5"
-              >
-                <UploadCloud className="h-4 w-4" />
-                <span>Direct S3 Upload</span>
-              </Button>
-            </div>
+          <div className="flex items-center gap-2.5">
+            <Button
+              onClick={() => setUploadModalOpen(true)}
+              className="h-9 gap-1.5 bg-sky-600 hover:bg-sky-700 text-white font-medium text-xs shadow-sm px-4"
+            >
+              <UploadCloud className="h-4 w-4" />
+              <span>Upload File</span>
+            </Button>
           </div>
         </div>
 
         {/* 4 Metric Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {/* Card 1: TOTAL OBJECTS */}
-          <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-2xs">
-            <div className="flex items-center justify-between text-slate-400">
-              <span className="text-[10px] font-bold tracking-wider uppercase text-slate-500">
-                TOTAL OBJECTS
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: Total Files */}
+          <div className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                Total Files
               </span>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(String(realFiles.length));
-                  toast.success("Count copied to clipboard");
-                }}
-                className="text-slate-400 hover:text-slate-600 cursor-pointer"
-              >
-                <Copy className="h-3.5 w-3.5" />
-              </button>
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
+                <Files className="h-4 w-4" />
+              </div>
             </div>
-            <div className="mt-2 flex items-baseline gap-2">
+            <div className="mt-3 flex items-baseline gap-2">
               <span className="text-2xl font-extrabold text-slate-900 tracking-tight">
                 {realFiles.length}
               </span>
-              <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                {realFiles.length > 0 ? `+${realFiles.length} total` : "Empty"}
+              <span className="text-xs text-slate-500">
+                {realFiles.length === 1 ? "file stored" : "files stored"}
               </span>
             </div>
-            <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500 border-t border-slate-100 pt-2">
-              <span>Indexed in PostgreSQL</span>
-              <span>MinIO Persistent</span>
+            <div className="mt-3 text-[11px] text-slate-400 border-t border-slate-100 pt-2.5">
+              Available in your personal cloud
             </div>
           </div>
 
-          {/* Card 2: STORAGE ALLOCATED */}
-          <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-2xs">
+          {/* Card 2: Storage Used */}
+          <div className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold tracking-wider uppercase text-slate-500">
-                STORAGE ALLOCATED
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                Storage Used
               </span>
-              <span className="font-mono text-xs font-bold text-sky-600">
-                {quotaPercent.toFixed(1)}%
-              </span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                <HardDrive className="h-4 w-4" />
+              </div>
             </div>
-            <div className="mt-2 text-2xl font-extrabold text-slate-900 tracking-tight">
+            <div className="mt-3 text-2xl font-extrabold text-slate-900 tracking-tight">
               {formatFileSize(totalBytes)}{" "}
-              <span className="text-sm font-medium text-slate-400">/ 50.0 GB</span>
+              <span className="text-xs font-normal text-slate-400">/ 50.0 GB</span>
             </div>
-            {/* Progress bar */}
             <div className="mt-3 flex h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
               <div
-                className="h-full bg-sky-500 transition-all duration-500"
+                className="h-full bg-sky-500 rounded-full transition-all duration-500"
                 style={{ width: `${Math.max(quotaPercent, totalBytes > 0 ? 2 : 0)}%` }}
               />
             </div>
-            <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
-              <span className="flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-sky-500" /> Hot Storage
-              </span>
-              <span>Quota: 50.0 GB</span>
+            <div className="mt-2 text-[11px] text-slate-400">
+              {quotaPercent.toFixed(1)}% of 50.0 GB used
             </div>
           </div>
 
-          {/* Card 3: REDIS METADATA HIT RATE */}
-          <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-2xs">
+          {/* Card 3: Storage Plan */}
+          <div className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold tracking-wider uppercase text-slate-500">
-                REDIS METADATA CACHE
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                Account Plan
               </span>
-              <Zap className="h-3.5 w-3.5 text-emerald-500 fill-emerald-500" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                <ShieldCheck className="h-4 w-4" />
+              </div>
             </div>
-            <div className="mt-2 flex items-baseline">
-              <span className="text-2xl font-extrabold font-mono text-emerald-600 tracking-tight">
-                99.4%
-              </span>
-              <span className="font-mono text-xs text-slate-400 ml-2">
-                &lt; 0.4ms avg
-              </span>
-            </div>
-            <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500 border-t border-slate-100 pt-2">
-              <span>L1 In-Memory Cache</span>
-              <span className="flex items-center gap-1 text-emerald-600 font-medium">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Active Sync
-              </span>
-            </div>
-          </div>
-
-          {/* Card 4: GO WORKER POOL */}
-          <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-2xs">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold tracking-wider uppercase text-slate-500">
-                GO WORKER POOL
-              </span>
-              <Cpu className="h-3.5 w-3.5 text-purple-600" />
-            </div>
-            <div className="mt-2 flex items-baseline gap-2">
+            <div className="mt-3 flex items-baseline gap-2">
               <span className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                3/3
+                Free Tier
               </span>
-              <span className="font-mono text-xs font-semibold text-sky-600">
-                Active Goroutines
+              <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                Active
               </span>
             </div>
-            <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500 border-t border-slate-100 pt-2">
-              <span>Buffer: 0 dropped</span>
-              <span className="font-mono text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
-                channel[100]
+            <div className="mt-3 text-[11px] text-slate-400 border-t border-slate-100 pt-2.5">
+              50 GB secure cloud space included
+            </div>
+          </div>
+
+          {/* Card 4: Drive Status */}
+          <div className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                Drive Status
               </span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
+                <Cloud className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-2xl font-extrabold text-slate-900 tracking-tight">
+                Synced
+              </span>
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            </div>
+            <div className="mt-3 text-[11px] text-slate-400 border-t border-slate-100 pt-2.5">
+              {realFiles.length > 0 ? "All files backed up safely" : "Ready for your first upload"}
             </div>
           </div>
         </div>
 
-        {/* Recent Storage Objects Table Card */}
-        <div className="rounded-xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
+        {/* Recent Files Table Card */}
+        <div className="rounded-xl border border-slate-200/90 bg-white shadow-xs overflow-hidden">
           {/* Header & Filter Tabs */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 p-4 gap-3">
             <div>
               <h2 className="text-base font-bold text-slate-900">
-                Recent Storage Objects
+                Recent Files
               </h2>
-              <p className="text-xs text-slate-500">
-                Active keys indexed across Redis and MinIO persistence layers
+              <p className="text-xs text-slate-500 mt-0.5">
+                Quick access to view, download, and manage your uploaded files
               </p>
             </div>
 
-            <div className="flex rounded-lg border border-slate-200 p-0.5 bg-slate-50/60 self-start sm:self-auto text-xs">
+            <div className="flex rounded-lg border border-slate-200 p-0.5 bg-slate-50 self-start sm:self-auto text-xs">
               <button
                 onClick={() => setActiveTab("all")}
                 className={`rounded-md px-3 py-1 font-semibold transition-colors ${
@@ -296,17 +271,7 @@ export default function DashboardPage() {
                     : "text-slate-500 hover:text-slate-900"
                 }`}
               >
-                All Objects ({realFiles.length})
-              </button>
-              <button
-                onClick={() => setActiveTab("archives")}
-                className={`rounded-md px-3 py-1 font-semibold transition-colors ${
-                  activeTab === "archives"
-                    ? "bg-white text-sky-600 shadow-2xs"
-                    : "text-slate-500 hover:text-slate-900"
-                }`}
-              >
-                Archives
+                All ({realFiles.length})
               </button>
               <button
                 onClick={() => setActiveTab("documents")}
@@ -328,13 +293,23 @@ export default function DashboardPage() {
               >
                 Media
               </button>
+              <button
+                onClick={() => setActiveTab("archives")}
+                className={`rounded-md px-3 py-1 font-semibold transition-colors ${
+                  activeTab === "archives"
+                    ? "bg-white text-sky-600 shadow-2xs"
+                    : "text-slate-500 hover:text-slate-900"
+                }`}
+              >
+                Archives
+              </button>
             </div>
           </div>
 
           {/* Table Data or Empty State */}
           {isLoading ? (
-            <div className="p-8 text-center text-xs font-mono text-slate-400">
-              Fetching object topology from MinIO cluster...
+            <div className="p-12 text-center text-xs text-slate-400">
+              Loading your files...
             </div>
           ) : filteredObjects.length === 0 ? (
             <div className="py-16 px-4 text-center">
@@ -343,47 +318,46 @@ export default function DashboardPage() {
               </div>
               <h3 className="text-sm font-bold text-slate-900">
                 {realFiles.length === 0
-                  ? "No storage objects found in cluster"
-                  : "No objects matching this category filter"}
+                  ? "No files in your CloudBox yet"
+                  : "No files match this category"}
               </h3>
               <p className="mt-1 text-xs text-slate-500 max-w-sm mx-auto">
                 {realFiles.length === 0
-                  ? "Your MinIO S3 bucket is currently empty. Upload your first file or generate a presigned URL."
-                  : "Try switching to the 'All Objects' tab."}
+                  ? "Upload photos, documents, videos, and archives to get started."
+                  : "Try selecting the 'All' tab to view all uploaded files."}
               </p>
               {realFiles.length === 0 && (
                 <Button
                   onClick={() => setUploadModalOpen(true)}
                   size="sm"
-                  className="mt-4 bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs"
+                  className="mt-4 bg-sky-600 hover:bg-sky-700 text-white font-medium text-xs"
                 >
                   <UploadCloud className="mr-1.5 h-3.5 w-3.5" />
-                  Direct S3 Upload
+                  Upload First File
                 </Button>
               )}
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50/70 border-b border-slate-100 font-mono text-[10px] uppercase tracking-wider text-slate-400">
+                <thead className="bg-slate-50/70 border-b border-slate-100 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                   <tr>
-                    <th className="py-2.5 px-4 font-semibold">OBJECT IDENTIFIER & KEY</th>
-                    <th className="py-2.5 px-4 font-semibold">MIME / TYPE</th>
-                    <th className="py-2.5 px-4 font-semibold">PAYLOAD SIZE</th>
-                    <th className="py-2.5 px-4 font-semibold">SYNC STATUS</th>
-                    <th className="py-2.5 px-4 font-semibold">MODIFIED</th>
-                    <th className="py-2.5 px-4 font-semibold text-right">ACTIONS</th>
+                    <th className="py-3 px-4">File Name</th>
+                    <th className="py-3 px-4">Category</th>
+                    <th className="py-3 px-4">Size</th>
+                    <th className="py-3 px-4">Uploaded</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredObjects.map((item) => {
-                    const s3Key = item.storage_key || `s3://cloudbox/users/${item.user_id}/${item.filename}`;
+                    const category = getFileCategory(item.mime_type);
                     return (
                       <tr
                         key={item.id}
                         className="hover:bg-slate-50/70 transition-colors group"
                       >
-                        {/* Identifier & Key */}
+                        {/* File Name */}
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-3">
                             {renderFileIcon(item.mime_type)}
@@ -391,79 +365,71 @@ export default function DashboardPage() {
                               <p className="font-semibold text-slate-900 group-hover:text-sky-600 transition-colors truncate max-w-[280px]">
                                 {item.filename}
                               </p>
-                              <p className="font-mono text-[10px] text-slate-400 truncate max-w-[340px]">
-                                {s3Key}
+                              <p className="text-[11px] text-slate-400 capitalize">
+                                {category} file
                               </p>
                             </div>
                           </div>
                         </td>
 
-                        {/* MIME Type */}
+                        {/* Category Badge */}
                         <td className="py-3 px-4">
-                          <span className="font-mono text-[11px] text-slate-600 bg-slate-100/80 px-2 py-0.5 rounded border border-slate-200/50">
-                            {item.mime_type}
+                          <span className="capitalize text-[11px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/50">
+                            {category}
                           </span>
                         </td>
 
                         {/* Size */}
-                        <td className="py-3 px-4 font-mono font-semibold text-slate-800">
+                        <td className="py-3 px-4 font-medium text-slate-700">
                           {formatFileSize(item.size)}
                         </td>
 
-                        {/* Sync Status */}
-                        <td className="py-3 px-4">
-                          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-mono font-medium text-emerald-700 border border-emerald-200/80">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                            Redis Cached
-                          </span>
-                        </td>
-
-                        {/* Modified */}
-                        <td className="py-3 px-4 font-mono text-slate-500">
+                        {/* Uploaded Date */}
+                        <td className="py-3 px-4 text-slate-500">
                           {formatDate(item.created_at)}
                         </td>
 
                         {/* Action Buttons */}
                         <td className="py-3 px-4 text-right">
                           <div className="inline-flex items-center gap-1">
+                            {/* Preview */}
+                            <button
+                              onClick={() => setPreviewFile(item)}
+                              title="Preview file"
+                              className="p-1.5 rounded-md text-slate-400 hover:text-sky-600 hover:bg-sky-50 transition-colors cursor-pointer"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+
                             {/* Download */}
                             <button
                               onClick={() => handleDownloadItem(item)}
-                              title="Download"
-                              className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                              title="Download file"
+                              className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                             >
-                              <Download className="h-3.5 w-3.5" />
+                              <Download className="h-4 w-4" />
                             </button>
 
                             {/* Copy Link */}
                             <button
-                              onClick={() => handleCopyUri(s3Key)}
-                              title="Copy S3 URI"
-                              className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                              onClick={() => handleCopyLink(item)}
+                              title="Copy file link"
+                              className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                             >
-                              {copiedKey === s3Key ? (
-                                <Check className="h-3.5 w-3.5 text-emerald-600" />
+                              {copiedId === item.id ? (
+                                <Check className="h-4 w-4 text-emerald-600" />
                               ) : (
-                                <Link2 className="h-3.5 w-3.5" />
+                                <Link2 className="h-4 w-4" />
                               )}
-                            </button>
-
-                            {/* View Details */}
-                            <button
-                              onClick={() => setPreviewFile(item)}
-                              title="Inspect Metadata"
-                              className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                            >
-                              <Info className="h-3.5 w-3.5" />
                             </button>
 
                             {/* Delete */}
                             <button
                               onClick={() => handleDeleteItem(item.id)}
-                              title="Evict Object"
-                              className="p-1 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                              title="Delete file"
+                              className="p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
                         </td>
@@ -477,19 +443,13 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Modals */}
-      <PresignedUrlModal
-        open={presignedModalOpen}
-        onOpenChange={setPresignedModalOpen}
-      />
-      <ApiDocsModal
-        open={apiDocsModalOpen}
-        onOpenChange={setApiDocsModalOpen}
-      />
+      {/* Upload Modal */}
       <FileUploadModal
         open={uploadModalOpen}
         onOpenChange={setUploadModalOpen}
       />
+
+      {/* File Preview Modal */}
       <FilePreviewModal
         file={previewFile}
         open={!!previewFile}

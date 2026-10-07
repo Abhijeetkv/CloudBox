@@ -22,10 +22,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#0b0f19]">
+      <div className="flex h-screen items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-sky-500" />
-          <span className="font-mono text-xs text-slate-400">Loading S3 Topology...</span>
+          <span className="text-xs font-medium text-slate-500">Loading CloudBox...</span>
         </div>
       </div>
     );
@@ -36,8 +36,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-dot-matrix p-0 sm:p-3 md:p-5 flex items-center justify-center">
-      <div className="w-full max-w-[1600px] min-h-screen sm:min-h-[92vh] sm:rounded-2xl border border-slate-800/80 bg-white shadow-2xl flex overflow-hidden">
+    <div className="min-h-screen bg-slate-100/60 p-0 sm:p-3 md:p-5 flex items-center justify-center">
+      <div className="w-full max-w-[1600px] min-h-screen sm:min-h-[92vh] sm:rounded-2xl border border-slate-200/90 bg-white shadow-sm flex overflow-hidden">
         <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <div className="flex flex-1 flex-col overflow-hidden min-w-0">
           <Header

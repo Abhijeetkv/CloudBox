@@ -24,24 +24,6 @@ interface HeaderProps {
 export function Header({ onMenuClick, onUploadClick, onSearchChange }: HeaderProps) {
   const { user, logout } = useAuth();
   const [searchValue, setSearchValue] = useState("");
-  const [apiLatency, setApiLatency] = useState("0.8ms");
-  const [redisStatus, setRedisStatus] = useState("ONLINE");
-
-  useEffect(() => {
-    // Ping API health to measure live latency
-    const start = performance.now();
-    api
-      .get("/health")
-      .then(() => {
-        const diff = (performance.now() - start).toFixed(1);
-        setApiLatency(`${diff}ms`);
-        setRedisStatus("ONLINE");
-      })
-      .catch(() => {
-        setApiLatency("offline");
-        setRedisStatus("DEGRADED");
-      });
-  }, []);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchValue(e.target.value);
@@ -74,7 +56,7 @@ export function Header({ onMenuClick, onUploadClick, onSearchChange }: HeaderPro
             type="text"
             value={searchValue}
             onChange={handleSearch}
-            placeholder="Search keys, prefixes, MIME types, or tags... (Press / to search)"
+            placeholder="Search your files..."
             className="h-9 w-full rounded-lg border border-slate-200/90 bg-slate-50/50 pl-10 pr-12 text-xs text-slate-800 placeholder:text-slate-400 focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500 transition-colors"
           />
           <kbd className="absolute right-3 top-2 pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-slate-200 bg-white px-1.5 font-mono text-[10px] font-medium text-slate-400">
@@ -83,30 +65,15 @@ export function Header({ onMenuClick, onUploadClick, onSearchChange }: HeaderPro
         </div>
       </div>
 
-      {/* Right Status Indicators & Quick Actions */}
+      {/* Right Quick Actions */}
       <div className="ml-4 flex items-center gap-2.5">
-        {/* Redis Status Pill */}
-        <div className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/80 px-2.5 py-1 text-[11px] font-mono font-medium text-emerald-700 shadow-2xs">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-          </span>
-          <span>Redis: {redisStatus}</span>
-        </div>
-
-        {/* Go API Latency Pill */}
-        <div className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50/80 px-2.5 py-1 text-[11px] font-mono font-medium text-sky-700 shadow-2xs">
-          <span className="h-2 w-2 rounded-full bg-sky-500" />
-          <span>Go API: {apiLatency}</span>
-        </div>
-
-        {/* Direct Upload Button */}
+        {/* Upload Button */}
         <Button
           onClick={onUploadClick}
           className="h-9 gap-1.5 bg-sky-600 hover:bg-sky-700 text-white shadow-sm font-medium text-xs px-3.5"
         >
           <UploadCloud className="h-4 w-4" />
-          <span>Direct Upload</span>
+          <span>Upload File</span>
         </Button>
 
         {/* User Profile Dropdown */}
@@ -123,23 +90,23 @@ export function Header({ onMenuClick, onUploadClick, onSearchChange }: HeaderPro
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>
               <div className="flex flex-col">
-                <span className="text-xs font-semibold text-slate-900">
-                  {user?.email || "dev@cloudbox.internal"}
+                <span className="text-xs font-semibold text-slate-900 truncate">
+                  {user?.email || "User"}
                 </span>
-                <span className="font-mono text-[10px] text-slate-400">
-                  Cluster: US-East-1 (MinIO)
+                <span className="text-[11px] text-slate-400">
+                  CloudBox Storage
                 </span>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link href="/files" className="cursor-pointer">
-                Object Explorer
+                My Files
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link href="/settings" className="cursor-pointer">
-                Infrastructure Settings
+                Settings
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />

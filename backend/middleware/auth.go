@@ -17,25 +17,30 @@ const (
 // JWTAuth validates the Bearer token in the Authorization header.
 func JWTAuth(secret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Check Authorization header first
+		token := ""
 		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
+		if authHeader != "" {
+			parts := strings.SplitN(authHeader, " ", 2)
+			if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
+				token = parts[1]
+			}
+		}
+
+		// Fallback to query param "token" (useful for direct browser access / links)
+		if token == "" {
+			token = c.Query("token")
+		}
+
+		if token == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"success": false,
-				"error":   "authorization header is required",
+				"error":   "authorization token is required",
 			})
 			return
 		}
 
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"success": false,
-				"error":   "authorization header format must be Bearer {token}",
-			})
-			return
-		}
-
-		claims, err := utils.ValidateToken(parts[1], secret)
+		claims, err := utils.ValidateToken(token, secret)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"success": false,
