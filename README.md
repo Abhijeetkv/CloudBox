@@ -1,6 +1,8 @@
 # CloudBox - Production-Grade Cloud File Storage Platform
 
-CloudBox is a high-performance, Google Drive-style cloud file storage platform engineered for backend reliability and developer clarity. It features an idiomatic Go (Gin) REST API, PostgreSQL relational metadata storage, Redis cache-aside caching and sliding-window rate limiting, MinIO S3-compatible object storage, and a modern Next.js 16 (TypeScript) client interface.
+Traditional cloud file storage architectures suffer from a critical bottleneck: streaming multi-gigabyte file binaries directly through application servers exhausts socket connections, saturates network I/O, and causes severe memory buffers to bloat under concurrent user traffic. Furthermore, managing arbitrary nested directory trees in relational databases introduces risks of cyclic folder dependencies and orphaned branches, while naive public sharing often exposes private object storage buckets to unauthorized access.
+
+**CloudBox** addresses these challenges by cleanly decoupling the **Control Plane** (authentication, quota enforcement, hierarchical graph validation, and metadata indexing via Go, PostgreSQL, and Redis) from the **Data Plane** (direct-to-storage binary streaming via MinIO/AWS S3 presigned URLs). This architecture keeps application instances stateless, lightweight, and resilient against binary I/O saturation, while delivering sub-millisecond metadata operations, graph-acyclic folder hierarchies, and secure, time-bound ephemeral file sharing.
 
 ---
 
@@ -21,7 +23,6 @@ CloudBox is a high-performance, Google Drive-style cloud file storage platform e
 6. [REST API Reference](#rest-api-reference)
 7. [Getting Started and Local Setup](#getting-started-and-local-setup)
 8. [Testing and Verification](#testing-and-verification)
-9. [Key Backend Interview and Architecture Highlights](#key-backend-interview-and-architecture-highlights)
 
 ---
 
@@ -381,33 +382,3 @@ Validate TypeScript types and JSX across all routes:
 cd frontend
 npx tsc --noEmit
 ```
-
----
-
-## Key Backend Interview and Architecture Highlights
-
-When discussing the CloudBox system design and technical trade-offs:
-
-1. **Direct-to-S3 Presigned URLs vs API Proxying**
-   - Proxying multi-gigabyte files through the application layer consumes socket connections, memory buffers, and CPU cycles.
-   - Offloading binary reads and writes directly to MinIO/S3 using short-lived presigned URLs keeps the Go API stateless, low-latency, and focused strictly on authorization and metadata management.
-
-2. **Circular Folder Dependency Prevention**
-   - Moving a folder into one of its own descendants creates orphaned reference loops in relational tree structures.
-   - The hierarchy is validated using depth/breadth tree traversal before committing changes, rejecting any cyclic moves with `409 Conflict`.
-
-3. **Separation of Relational Metadata and Binary Storage**
-   - Relational tables store indexed pointers (`storage_key`, `size`, `folder_id`, `user_id`).
-   - Keeps relational row footprints small, query execution fast, and index pages cache-friendly while object storage handles horizontal scale.
-
-4. **Cache Invalidation and Read-Through Strategy**
-   - File metadata reads utilize the cache-aside pattern with a 10-minute TTL.
-   - Any write or delete operation purges the associated cache key immediately, preventing stale reads across replicas.
-
-5. **Rate Limiting with Redis Atomic Pipelines**
-   - Request counts are tracked per client IP using Redis sliding-window counters.
-   - Protects against brute-force authentication attacks and resource exhaustion on file endpoints.
-
-6. **Goroutine Worker Pool for Asynchronous Offloading**
-   - Non-critical post-upload tasks are offloaded to an internal worker pool via buffered Go channels.
-   - Avoids adding latency to synchronous HTTP responses while managing concurrency limits to prevent resource contention.

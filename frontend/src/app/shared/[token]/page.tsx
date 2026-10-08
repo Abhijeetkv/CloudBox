@@ -194,7 +194,7 @@ export default function SharedFilePage() {
 
       {/* Footer */}
       <footer className="shrink-0 py-4 text-center text-xs text-slate-400 border-t border-slate-200/60">
-        CloudBox Portfolio Project • S3-Compatible Direct Object Storage
+        CloudBox • S3-Compatible Direct Object Storage
       </footer>
     </div>
   );
