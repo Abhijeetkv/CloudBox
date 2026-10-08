@@ -66,7 +66,7 @@ func setupTestApp() (*config.Config, *handlers.AuthHandler, *handlers.FileHandle
 
 func TestAuthEndpoints(t *testing.T) {
 	cfg, authHandler, fileHandler := setupTestApp()
-	router := routes.SetupRouter(cfg, zap.NewNop(), nil, authHandler, fileHandler)
+	router := routes.SetupRouter(cfg, zap.NewNop(), nil, authHandler, fileHandler, nil, nil, nil)
 
 	// 1. Register Success
 	regBody, _ := json.Marshal(map[string]string{

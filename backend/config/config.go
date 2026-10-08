@@ -16,6 +16,7 @@ type Config struct {
 	MinIOAccessKey string `mapstructure:"MINIO_ACCESS_KEY"`
 	MinIOSecretKey string `mapstructure:"MINIO_SECRET_KEY"`
 	MinIOBucket    string `mapstructure:"MINIO_BUCKET"`
+	MinIOPublicURL string `mapstructure:"MINIO_PUBLIC_URL"`
 }
 
 // LoadConfig reads configuration from .env file or environment variables.
@@ -32,6 +33,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault("MINIO_ACCESS_KEY", "minioadmin")
 	viper.SetDefault("MINIO_SECRET_KEY", "minioadmin")
 	viper.SetDefault("MINIO_BUCKET", "cloudbox")
+	viper.SetDefault("MINIO_PUBLIC_URL", "localhost:9000")
 
 	// Read environment variables from OS if present
 	viper.AutomaticEnv()

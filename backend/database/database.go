@@ -33,9 +33,9 @@ func InitDB(databaseURL string, log *zap.Logger) (*gorm.DB, error) {
 	sqlDB.SetMaxOpenConns(100)
 	sqlDB.SetConnMaxLifetime(time.Hour)
 
-	// Run AutoMigrate for User and File models
+	// Run AutoMigrate for User, Folder, File, and Share models
 	log.Info("Running database AutoMigrate...")
-	if err := db.AutoMigrate(&models.User{}, &models.File{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.Folder{}, &models.File{}, &models.Share{}); err != nil {
 		return nil, fmt.Errorf("failed to auto-migrate database: %w", err)
 	}
 

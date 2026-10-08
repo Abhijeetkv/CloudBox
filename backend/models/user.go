@@ -13,5 +13,7 @@ type User struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 
 	// Relationships
-	Files []File `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"files,omitempty"`
+	Files   []File   `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"files,omitempty"`
+	Folders []Folder `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"folders,omitempty"`
+	Shares  []Share  `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"shares,omitempty"`
 }

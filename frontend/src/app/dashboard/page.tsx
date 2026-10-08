@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { AppShell } from "@/components/layout/app-shell";
-import { useFiles, useDeleteFile, useDownloadFile } from "@/hooks/use-files";
+import { useFiles, useDeleteFile, useDownloadFile, useStorageUsage } from "@/hooks/use-files";
 import { FileUploadModal } from "@/components/files/file-upload-modal";
 import { FilePreviewModal } from "@/components/files/file-preview-modal";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ import { toast } from "sonner";
 
 export default function DashboardPage() {
   const { data: realFiles = [], isLoading } = useFiles();
+  const { data: storageUsage } = useStorageUsage();
   const deleteMutation = useDeleteFile();
   const downloadMutation = useDownloadFile();
 
@@ -40,13 +41,10 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<"all" | "archives" | "documents" | "media">("all");
   const [copiedId, setCopiedId] = useState<number | null>(null);
 
-  // Storage calculation
-  const totalBytes = useMemo(() => {
-    return realFiles.reduce((acc, f) => acc + f.size, 0);
-  }, [realFiles]);
-
-  const quotaLimitBytes = 50 * 1024 * 1024 * 1024; // 50 GB
-  const quotaPercent = Math.min(100, (totalBytes / quotaLimitBytes) * 100);
+  // Storage calculation from live backend
+  const totalBytes = storageUsage?.used ?? realFiles.reduce((acc, f) => acc + f.size, 0);
+  const quotaLimitBytes = storageUsage?.limit ?? 50 * 1024 * 1024 * 1024; // 50 GB
+  const quotaPercent = storageUsage?.percentage ?? Math.min(100, (totalBytes / quotaLimitBytes) * 100);
 
   const filteredObjects = useMemo(() => {
     if (activeTab === "all") return realFiles;

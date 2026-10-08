@@ -14,7 +14,7 @@ import {
   User,
 } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
-import { useFiles } from "@/hooks/use-files";
+import { useFiles, useStorageUsage } from "@/hooks/use-files";
 import { cn, formatFileSize } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -34,15 +34,16 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const { data: files = [] } = useFiles();
+  const { data: storageUsage } = useStorageUsage();
 
   const handleLogout = () => {
     logout();
     window.location.href = "/login";
   };
 
-  const totalBytes = files.reduce((acc, f) => acc + f.size, 0);
+  const totalBytes = storageUsage?.used ?? files.reduce((acc, f) => acc + f.size, 0);
   const totalGB = (totalBytes / (1024 * 1024 * 1024)).toFixed(2);
-  const quotaPercent = Math.min(100, (totalBytes / (50 * 1024 * 1024 * 1024)) * 100).toFixed(1);
+  const quotaPercent = (storageUsage?.percentage ?? Math.min(100, (totalBytes / (50 * 1024 * 1024 * 1024)) * 100)).toFixed(1);
 
   return (
     <>

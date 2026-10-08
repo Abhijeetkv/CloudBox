@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
+	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -16,16 +18,19 @@ type Storage interface {
 	Upload(ctx context.Context, key string, reader io.Reader, size int64, contentType string) error
 	Download(ctx context.Context, key string) (io.ReadCloser, error)
 	Delete(ctx context.Context, key string) error
+	GetPresignedUploadURL(ctx context.Context, key string, expiry time.Duration) (string, error)
+	GetPresignedDownloadURL(ctx context.Context, key string, filename string, expiry time.Duration) (string, error)
 }
 
 type minioStorage struct {
-	client *minio.Client
-	bucket string
-	logger *zap.Logger
+	client         *minio.Client
+	bucket         string
+	publicEndpoint string
+	logger         *zap.Logger
 }
 
 // NewMinIOStorage creates a new MinIO-backed storage and ensures the bucket exists.
-func NewMinIOStorage(endpoint, accessKey, secretKey, bucket string, useSSL bool, logger *zap.Logger) (Storage, error) {
+func NewMinIOStorage(endpoint, accessKey, secretKey, bucket, publicEndpoint string, useSSL bool, logger *zap.Logger) (Storage, error) {
 	client, err := minio.New(endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
 		Secure: useSSL,
@@ -52,9 +57,10 @@ func NewMinIOStorage(endpoint, accessKey, secretKey, bucket string, useSSL bool,
 	}
 
 	return &minioStorage{
-		client: client,
-		bucket: bucket,
-		logger: logger,
+		client:         client,
+		bucket:         bucket,
+		publicEndpoint: publicEndpoint,
+		logger:         logger,
 	}, nil
 }
 
@@ -93,4 +99,36 @@ func (s *minioStorage) Delete(ctx context.Context, key string) error {
 		return fmt.Errorf("failed to delete object from MinIO: %w", err)
 	}
 	return nil
+}
+
+// GetPresignedUploadURL generates a short-lived presigned PUT URL for direct client-to-storage uploads.
+func (s *minioStorage) GetPresignedUploadURL(ctx context.Context, key string, expiry time.Duration) (string, error) {
+	presignedURL, err := s.client.PresignedPutObject(ctx, s.bucket, key, expiry)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate presigned upload URL: %w", err)
+	}
+
+	if s.publicEndpoint != "" && presignedURL.Host != s.publicEndpoint {
+		presignedURL.Host = s.publicEndpoint
+	}
+
+	return presignedURL.String(), nil
+}
+
+// GetPresignedDownloadURL generates a short-lived presigned GET URL with custom download attachment header.
+func (s *minioStorage) GetPresignedDownloadURL(ctx context.Context, key string, filename string, expiry time.Duration) (string, error) {
+	reqParams := make(url.Values)
+	if filename != "" {
+		reqParams.Set("response-content-disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	}
+	presignedURL, err := s.client.PresignedGetObject(ctx, s.bucket, key, expiry, reqParams)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate presigned download URL: %w", err)
+	}
+
+	if s.publicEndpoint != "" && presignedURL.Host != s.publicEndpoint {
+		presignedURL.Host = s.publicEndpoint
+	}
+
+	return presignedURL.String(), nil
 }

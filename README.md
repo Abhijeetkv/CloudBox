@@ -1,121 +1,161 @@
-# 📦 CloudBox — Production-Style Cloud File Storage Backend
+# 📦 CloudBox — Production-Grade Cloud File Storage Platform
 
-CloudBox is a lightweight, production-grade cloud file-storage service inspired by AWS S3, engineered with **Go**, **Gin**, **PostgreSQL**, **Redis**, and **MinIO**.
+CloudBox is a high-performance, Google Drive-inspired cloud file storage platform engineered for backend reliability and developer clarity. It features an idiomatic **Go (Gin)** REST API, **PostgreSQL** relational metadata, **Redis** cache-aside & rate limiting, **MinIO** S3-compatible object storage, and a modern **Next.js (TypeScript)** drive interface.
 
 ---
 
 ## 📑 Table of Contents
-1. [Overview](#-overview)
-2. [Technology Choices & Rationale](#-technology-choices--rationale)
-3. [Architecture](#-architecture)
-4. [Concurrency & Worker Pool](#-concurrency--worker-pool)
+1. [System Architecture](#-system-architecture)
+2. [Tech Stack & Rationale](#-tech-stack--rationale)
+3. [Database Schema](#-database-schema)
+4. [Core Architectural Flows](#-core-architectural-flows)
+   - [Direct-to-S3 Presigned Uploads](#1-direct-to-s3-presigned-uploads)
+   - [Secure File Streaming & Presigned Downloads](#2-secure-file-streaming--presigned-downloads)
+   - [Circular Folder Hierarchy Guard](#3-circular-folder-hierarchy-guard)
+   - [Temporary Public Shares](#4-temporary-public-shares)
+   - [Redis Cache-Aside & Rate Limiting](#5-redis-cache-aside--rate-limiting)
 5. [Project Structure](#-project-structure)
-6. [Environment Variables](#-environment-variables)
-7. [Getting Started](#-getting-started)
-   - [Option A: Docker Compose (Recommended)](#option-a-docker-compose-recommended)
-   - [Option B: Local Development](#option-b-local-development)
-8. [Running Tests](#-running-tests)
-9. [API Documentation & curl Examples](#-api-documentation--curl-examples)
-10. [Future Production Improvements](#-future-production-improvements)
+6. [REST API Reference](#-rest-api-reference)
+7. [Getting Started & Local Setup](#-getting-started--local-setup)
+8. [Testing & Verification](#-testing--verification)
+9. [Key Backend Interview Talking Points (₹14 LPA Focus)](#-key-backend-interview-talking-points-14-lpa-focus)
 
 ---
 
-## 🌟 Overview
+## 🏛️ System Architecture
 
-CloudBox delivers scalable file storage with clear separation of responsibilities:
-- **Binary Data:** Stored in MinIO object storage (S3-compatible).
-- **Metadata:** Persisted in PostgreSQL via GORM (filename, MIME type, byte size, ownership).
-- **Caching & Rate Limiting:** High-speed cache-aside lookups and IP-based rate limiting via Redis.
-- **Background Jobs:** Asynchronous file processing powered by Go native goroutines and buffered channels.
-- **Security:** Bcrypt password hashing, signed JWT tokens, and strict file ownership enforcement.
+```mermaid
+graph TD
+    User["Web Browser / Client (Next.js)"]
+    
+    subgraph Gateway ["Go + Gin Application Engine (:8080)"]
+        Router["Gin HTTP Router"]
+        AuthMW["JWT Auth Middleware"]
+        RateMW["Redis Rate Limiter (HTTP 429)"]
+        LoggerMW["Zap Structured Logger"]
+        
+        Handlers["HTTP Handlers (Auth, Files, Folders, Shares, Storage)"]
+        Services["Domain Services (FileService, FolderService, ShareService)"]
+        WorkerPool["Goroutine Worker Pool (Async Tasks)"]
+    end
+    
+    subgraph DataPlane ["Persistence & Object Store"]
+        Postgres[("PostgreSQL\nMetadata, Quotas, Folders")]
+        Redis[("Redis\nCache & Rate Limits")]
+        MinIO["MinIO / S3 Object Store\nActual File Binaries"]
+    end
 
----
-
-## 💡 Technology Choices & Rationale
-
-| Technology | Purpose | Why We Chose It |
-|---|---|---|
-| **Go (Golang)** | Primary Language | Blazing-fast execution, low memory footprint, compiled static binaries, and first-class native concurrency primitives (goroutines and channels). |
-| **Gin Framework** | HTTP Router & API Engine | Minimalist, high performance (powered by `httprouter`), rich middleware ecosystem, and clean JSON/multipart binding. |
-| **GORM** | PostgreSQL ORM | Type-safe database operations, connection pooling, and automatic schema migrations. |
-| **PostgreSQL** | Relational Metadata DB | ACID compliance, robust indexing on user ownership and storage keys, and relational integrity. |
-| **Redis** | In-Memory Cache & Limiter | Sub-millisecond latency for metadata caching and atomic pipeline increments for rate limiting. |
-| **MinIO** | Object Storage | 100% S3 API compatibility for local development and private clouds, allowing easy migration to AWS S3. |
-| **Zap** | Structured Logging | Zero-allocation structured JSON and console logging for high-throughput production environments. |
-| **Viper** | Configuration Management | 12-factor configuration support reading `.env` files, OS environments, and fallback defaults. |
-| **Testify & Miniredis** | Testing Suite | Clean assertion libraries and in-memory Redis emulation for deterministic tests. |
-
----
-
-## 🏛️ Architecture
-
-```
-                                  Client
-                                    │
-                                    ▼
-                         ┌─────────────────────┐
-                         │      Gin Router     │
-                         └──────────┬──────────┘
-                                    │
-                         ┌──────────▼──────────┐
-                         │     Middlewares     │
-                         │ ├─ Structured Log   │
-                         │ ├─ Panic Recovery   │
-                         │ ├─ Rate Limiting    │
-                         │ └─ JWT Auth         │
-                         └──────────┬──────────┘
-                                    │
-                         ┌──────────▼──────────┐
-                         │      Handlers       │
-                         │  (Auth & File HTTP) │
-                         └──────────┬──────────┘
-                                    │
-                         ┌──────────▼──────────┐
-                         │      Services       │
-                         │ (Auth & File Logic) │
-                         └─────┬───────┬───────┘
-                               │       │
-             ┌─────────────────┘       └──────────────────┐
-             ▼                                            ▼
-┌─────────────────────────┐                  ┌─────────────────────────┐
-│     File Repository     │                  │     Storage Service     │
-│       (PostgreSQL)      │                  │       (MinIO / S3)      │
-└────────────┬────────────┘                  └─────────────────────────┘
-             │
-             ▼
-┌─────────────────────────┐
-│       Redis Cache       │
-│  (Cache-aside & Limits) │
-└─────────────────────────┘
+    User -->|"1. API Requests"| Router
+    Router --> LoggerMW --> RateMW --> AuthMW --> Handlers
+    Handlers --> Services
+    
+    Services -->|"Metadata / Queries"| Postgres
+    Services -->|"Cache Read/Write"| Redis
+    Services -->|"Presigned PUT/GET URLs"| MinIO
+    Services -->|"Enqueue Processing"| WorkerPool
+    
+    User -.->|"2. Direct Binary PUT (Presigned URL)"| MinIO
+    User -.->|"3. Direct Binary GET (Presigned URL)"| MinIO
 ```
 
 ---
 
-## ⚡ Concurrency & Worker Pool
+## 💡 Tech Stack & Rationale
 
-CloudBox uses native Go concurrency rather than heavy message brokers (RabbitMQ/Kafka) to demonstrate idiomatic Go patterns:
+| Layer | Component | Choice | Engineering Rationale |
+|---|---|---|---|
+| **API Framework** | Backend Core | **Go (Golang) + Gin** | Blazing-fast execution, tiny memory footprint, compiled static binary, and first-class native concurrency primitives (`goroutines` and channels). |
+| **Relational DB** | Metadata & Structure | **PostgreSQL (GORM)** | ACID compliance, transactional integrity for folder cascading deletes, foreign keys, and indexes on `(owner_id, folder_id)`. |
+| **Object Storage** | Binary Storage | **MinIO (S3 API)** | Complete AWS S3 API compatibility. Keeps large binary payloads out of the relational database and web application servers. |
+| **In-Memory Cache** | Cache & Rate Limiting | **Redis** | Sub-millisecond latency for metadata cache-aside lookups and atomic sliding window rate limiting. |
+| **Frontend** | User Interface | **Next.js 14 + Tailwind** | Responsive, clean Google Drive-style UI with breadcrumb folder navigation, preview modal, and quota meter. |
+| **Logging** | Observability | **Uber Zap** | Zero-allocation structured JSON logging for high-throughput production tracing. |
 
+---
+
+## 🗄️ Database Schema
+
+PostgreSQL stores file and folder metadata; binary payloads are stored in S3/MinIO.
+
+```mermaid
+erDiagram
+    USERS ||--o{ FOLDERS : owns
+    USERS ||--o{ FILES : owns
+    USERS ||--o{ SHARES : creates
+    FOLDERS ||--o{ FOLDERS : "parent_id (nested)"
+    FOLDERS ||--o{ FILES : contains
+    FILES ||--o{ SHARES : "shared_via"
+
+    USERS {
+        bigint id PK
+        string email UK "Indexed"
+        string password_hash
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    FOLDERS {
+        bigint id PK
+        bigint user_id FK "Indexed"
+        bigint parent_id FK "Indexed (Nullable for root)"
+        string name
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    FILES {
+        bigint id PK
+        bigint user_id FK "Indexed"
+        bigint folder_id FK "Indexed (Nullable for root)"
+        string filename
+        string storage_key UK "users/{uid}/files/{id}/{name}"
+        bigint size "Bytes"
+        string mime_type
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    SHARES {
+        bigint id PK
+        bigint file_id FK "Indexed"
+        bigint user_id FK "Indexed"
+        string token UK "48-char hex (Indexed)"
+        timestamp expires_at "Nullable (Never expires)"
+        timestamp created_at
+    }
 ```
-File Uploaded
-     │
-     ▼
-FileService.Upload
-     │
-     ▼
-WorkerPool.Enqueue(Job)
-     │
-     ▼
-[ buffered chan Job (Capacity: 100) ]
-     │
-     ├── Worker 1 (Goroutine) ──> Process & Log
-     ├── Worker 2 (Goroutine) ──> Process & Log
-     └── Worker 3 (Goroutine) ──> Process & Log
-```
 
-1. **`chan Job`**: A buffered Go channel holding pending processing tasks.
-2. **Workers**: 3 concurrent goroutines spawned during startup listening to the same channel.
-3. **Non-blocking Enqueue**: Uses Go's `select` with a `default` case to avoid stalling HTTP responses if the queue reaches capacity.
-4. **Graceful Shutdown**: On server termination, `Stop()` closes the channel and uses `sync.WaitGroup` to let in-flight jobs finish processing.
+---
+
+## 🔄 Core Architectural Flows
+
+### 1. Direct-to-S3 Presigned Uploads
+To prevent multi-gigabyte uploads from saturating Go API memory and network bandwidth:
+1. **Request Upload URL:** Client calls `POST /api/files/upload-url` with `{ filename, mime_type, size, folder_id }`.
+2. **Quota Check:** Go checks if `current_storage + size > 50 GB`. If exceeded, rejects with `400 STORAGE_LIMIT_EXCEEDED`.
+3. **Generate Presigned URL:** Go signs an S3 `PUT` presigned URL with a 15-minute expiration and returns `{ upload_url, storage_key }`.
+4. **Direct Client Upload:** Browser uploads directly to MinIO/S3 via `PUT <upload_url>`.
+5. **Confirm Upload:** Browser notifies Go via `POST /api/files/confirm-upload`. Metadata is recorded in PostgreSQL, Redis cache is invalidated, and background thumbnail/metadata tasks are enqueued.
+
+### 2. Secure File Streaming & Presigned Downloads
+Files are never stored as public S3 objects:
+- **Authenticated Stream:** `GET /api/files/:id/download` verifies user ownership and streams file bytes with `Content-Disposition: attachment`.
+- **Presigned Download URL:** Go signs an S3 `GET` presigned URL with a 15-minute TTL, ensuring links cannot be shared permanently or accessed without authorization.
+
+### 3. Circular Folder Hierarchy Guard
+Preventing circular references (e.g. moving `/A` into `/A/B/C`, which causes infinite loops or orphans):
+- `FolderService.MoveFolder(id, newParentID)` traverses the folder tree using BFS/DFS.
+- If `newParentID` is equal to `id` or is found in `GetDescendantFolderIDs(id)`, the API rejects the operation with `409 CONFLICT: cannot move a folder into its own subfolder`.
+
+### 4. Temporary Public Shares
+- Users can create a shareable link with expiration (`1h`, `24h`, `7d`, or `never`).
+- A cryptographically secure 48-character token is generated (`crypto/rand`).
+- Public recipients visit `/shared/:token` (unauthenticated). The server validates the expiration timestamp and generates a short-lived presigned S3 download URL.
+
+### 5. Redis Cache-Aside & Rate Limiting
+- **Cache-Aside:** File metadata queries (`GET /api/files/:id`) query Redis first. On cache miss, GORM fetches from PostgreSQL and populates Redis with a 10-minute TTL.
+- **Cache Invalidation:** Any mutation (`PATCH`, `DELETE`, `MoveFile`) immediately purges `cache:file:{id}`.
+- **Rate Limiting:** Protects `/api/auth/*` and upload endpoints (e.g., 60 requests per minute per IP) using Redis atomic pipelines. Exceeding limits returns `429 Too Many Requests`.
 
 ---
 
@@ -124,375 +164,167 @@ WorkerPool.Enqueue(Job)
 ```
 cloudbox/
 ├── docker-compose.yml          # Multi-container orchestration (API, Postgres, Redis, MinIO)
-├── README.md                   # Complete documentation
-├── .gitignore                  # Root git ignore
+├── README.md                   # System documentation
 │
-└── backend/                    # All backend Go source code & configuration
-    ├── main.go                 # Entry point (initializes DB, Redis, MinIO, workers, router)
-    ├── go.mod                  # Module definition and dependencies
-    ├── go.sum                  # Cryptographic dependency checksums
-    ├── Dockerfile              # Multi-stage minimal production Dockerfile
-    ├── .env                    # Local environment variables
-    ├── .env.example            # Example environment variables template
-    ├── .gitignore              # Backend git ignore
-    │
-    ├── config/
-    │   └── config.go           # Viper environment loader
-    ├── database/
-    │   └── database.go         # GORM PostgreSQL connection, pooling, & AutoMigrate
-    ├── models/
-    │   ├── user.go             # User model & relationships
-    │   └── file.go             # File metadata model
-    ├── repository/
-    │   ├── user_repository.go  # PostgreSQL User queries
-    │   └── file_repository.go  # PostgreSQL File queries
-    ├── services/
-    │   ├── auth_service.go     # Registration & login business logic
-    │   └── file_service.go     # File upload, streaming, caching, & deletion logic
-    ├── handlers/
-    │   ├── auth_handler.go     # Auth HTTP endpoints
-    │   └── file_handler.go     # File management HTTP endpoints
-    ├── middleware/
-    │   ├── auth.go             # JWT validation & context injection
-    │   ├── logger.go           # Zap structured request logging & recovery
-    │   └── rate_limit.go       # Redis IP-based rate limiting (429)
-    ├── storage/
-    │   └── minio.go            # Storage interface abstraction & MinIO client
-    ├── cache/
-    │   └── redis.go            # Redis client & CacheService implementation
-    ├── workers/
-    │   └── worker.go           # Worker pool, channel dispatch, & graceful stop
-    ├── routes/
-    │   └── routes.go           # Gin routing table setup
-    └── utils/
-        ├── jwt.go              # JWT generation & validation
-        └── password.go         # Bcrypt hashing & verification
+├── backend/                    # Go REST API backend
+│   ├── main.go                 # Application bootstrap & dependency injection
+│   ├── Dockerfile              # Multi-stage production container build
+│   ├── config/                 # Viper environment loader
+│   ├── database/               # GORM connection & AutoMigrate
+│   ├── models/                 # User, File, Folder, Share GORM models
+│   ├── repository/             # Database access layer (FileRepo, FolderRepo, ShareRepo)
+│   ├── services/               # Core business logic (Storage quotas, circular guards, tokens)
+│   ├── handlers/               # Gin HTTP handlers
+│   ├── routes/                 # Route declarations & middleware wiring
+│   ├── middleware/             # JWT auth, Zap structured logging, Redis rate limiter
+│   ├── storage/                # MinIO S3 client & presigned URL generator
+│   ├── cache/                  # Redis cache-aside client
+│   ├── workers/                # Goroutine worker pool & async processing
+│   └── utils/                  # Standardized response envelopes & password hashing
+│
+└── frontend/                   # Next.js 14 client application
+    ├── src/app/
+    │   ├── dashboard/          # Metrics, recent files, quota status
+    │   ├── files/              # Google Drive file browser & folder hierarchy
+    │   ├── shared/[token]/     # Public temporary share download page
+    │   ├── settings/           # Account details & quota overview
+    │   ├── login/ & register/  # Authentication views
+    ├── src/components/files/   # Breadcrumbs, FolderGrid, FileTable, ShareModal, MoveModal
+    └── src/lib/                # Axios interceptors & API client
 ```
 
 ---
 
-## ⚙️ Environment Variables
+## 📡 REST API Reference
 
-The backend configuration is managed in `backend/.env`:
+All responses use a standardized JSON envelope:
+```json
+{
+  "success": true,
+  "data": { ... }
+}
+```
 
-| Variable | Description | Default Local Value | Docker Compose Value |
+### 1. Authentication
+| Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| `APP_PORT` | HTTP server port | `8080` | `8080` |
-| `DATABASE_URL` | PostgreSQL connection string | `postgres://postgres:postgres@localhost:5432/cloudbox` | `postgres://postgres:postgres@postgres:5432/cloudbox?sslmode=disable` |
-| `REDIS_URL` | Redis connection URL | `redis://localhost:6379` | `redis://redis:6379` |
-| `JWT_SECRET` | HMAC secret key for JWT signing | `change-me-secret-key-12345` | `cloudbox-super-secret-jwt-key` |
-| `MINIO_ENDPOINT` | MinIO host and port | `localhost:9000` | `minio:9000` |
-| `MINIO_ACCESS_KEY` | MinIO root/access key | `minioadmin` | `minioadmin` |
-| `MINIO_SECRET_KEY` | MinIO secret key | `minioadmin` | `minioadmin` |
-| `MINIO_BUCKET` | S3 bucket name for files | `cloudbox` | `cloudbox` |
+| `POST` | `/api/auth/register` | Public | Create new account (`{ email, password }`) |
+| `POST` | `/api/auth/login` | Public | Authenticate and obtain JWT token |
+| `POST` | `/api/auth/logout` | JWT | Invalidate active session |
+| `GET` | `/api/auth/me` | JWT | Get current authenticated user |
+
+### 2. File Operations
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/files` | JWT | List files (`?folder_id=<id>` for folder contents) |
+| `GET` | `/api/files/search` | JWT | Search files by name (`?q=report`) |
+| `POST` | `/api/files` | JWT | Multipart file upload |
+| `POST` | `/api/files/upload-url` | JWT | Generate presigned S3 upload URL |
+| `POST` | `/api/files/confirm-upload` | JWT | Confirm presigned upload and save metadata |
+| `GET` | `/api/files/:id` | JWT | Get file metadata (Redis cached) |
+| `PATCH` | `/api/files/:id` | JWT | Rename file or move to another folder |
+| `DELETE` | `/api/files/:id` | JWT | Delete file from PostgreSQL, Redis, and MinIO |
+| `GET` | `/api/files/:id/download` | JWT | Stream file contents |
+
+### 3. Folder Operations
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/folders` | JWT | List folders (`?parent_id=<id>`) |
+| `POST` | `/api/folders` | JWT | Create folder (`{ name, parent_id }`) |
+| `PATCH` | `/api/folders/:id` | JWT | Rename or move folder (with circular guard) |
+| `DELETE` | `/api/folders/:id` | JWT | Cascading delete of folder and all contents |
+
+### 4. File Sharing & Quotas
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/shares` | JWT | Create share link (`{ file_id, duration_minutes }`) |
+| `GET` | `/api/shares/:token` | Public | Resolve share token to presigned S3 download URL |
+| `GET` | `/api/shares` | JWT | List all user's active shares |
+| `DELETE` | `/api/shares/:id` | JWT | Revoke share link |
+| `GET` | `/api/storage/usage` | JWT | Get current usage vs 50 GB quota |
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Getting Started & Local Setup
 
-### Option A: Docker Compose (Recommended)
-
+### Option A: Complete Docker Compose (Recommended)
 From the project root:
-
-```powershell
-docker compose up --build
+```bash
+docker compose up -d
 ```
 
-- **API:** http://localhost:8080
+Service endpoints:
+- **CloudBox API:** `http://localhost:8080`
 - **PostgreSQL:** `localhost:5432`
 - **Redis:** `localhost:6379`
-- **MinIO S3 API:** http://localhost:9000
-- **MinIO Web Console:** http://localhost:9001 (User: `minioadmin`, Password: `minioadmin`)
+- **MinIO S3 API:** `http://localhost:9000`
+- **MinIO Console:** `http://localhost:9001` (User: `minioadmin`, Password: `minioadmin`)
 
----
+### Option B: Local Backend Development
+```bash
+# 1. Start backing services
+docker compose up -d postgres redis minio
 
-### Option B: Local Development
-
-1. Ensure PostgreSQL, Redis, and MinIO are running (e.g. `docker compose up -d postgres redis minio`).
-2. Navigate into the backend directory:
-   ```powershell
-   cd backend
-   go run main.go
-   ```
-
----
-
-## 🧪 Running Tests
-
-To run the complete test suite:
-
-```powershell
+# 2. Run Go backend
 cd backend
-go test -v ./...
+go run main.go
 ```
 
-To run a specific package test:
-```powershell
+### Option C: Frontend Development
+```bash
+cd frontend
+npm install
+npm run dev
+# Accessible at http://localhost:3000
+```
+
+---
+
+## 🧪 Testing & Verification
+
+Run the full Go test suite without cache:
+```bash
+cd backend
+go test -count=1 -v ./...
+```
+
+Run tests by package:
+```bash
 go test -v ./handlers
 go test -v ./services
 go test -v ./middleware
 go test -v ./workers
 ```
 
----
-
-## 📡 API Documentation & curl Examples
-
-### 1. Health Check
-Checks if the server is healthy.
-- **Method:** `GET`
-- **URL:** `/health`
-- **Auth:** None
-
-```powershell
-curl http://localhost:8080/health
-```
-**Response (`200 OK`):**
-```json
-{
-  "status": "ok"
-}
+Verify TypeScript types on frontend:
+```bash
+cd frontend
+npx tsc --noEmit
 ```
 
 ---
 
-### 2. User Registration
-Registers a new user account.
-- **Method:** `POST`
-- **URL:** `/api/auth/register`
-- **Auth:** None
-- **Body:**
-  ```json
-  {
-    "email": "alice@example.com",
-    "password": "password123"
-  }
-  ```
+## 🎯 Key Backend Interview Talking Points (₹14 LPA Focus)
 
-```powershell
-curl -X POST http://localhost:8080/api/auth/register `
-  -H "Content-Type: application/json" `
-  -d '{"email":"alice@example.com","password":"password123"}'
-```
-**Response (`201 Created`):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "email": "alice@example.com",
-    "created_at": "2026-10-06T22:50:00Z"
-  }
-}
-```
-**Possible Errors:**
-- `400 Bad Request` (Email invalid or password < 6 chars)
-- `409 Conflict` (User with this email already exists)
+When discussing CloudBox in technical interviews, highlight these architectural decisions:
 
----
+1. **Why presigned URLs instead of proxying large files through Go?**
+   - Proxying gigabyte files through Go consumes connection pool threads and server memory buffers.
+   - Offloading binary transfers to MinIO/S3 using presigned URLs allows the Go API to remain lightweight, stateless, and focused on metadata and access control.
 
-### 3. User Login
-Authenticates an existing user and returns a signed JWT.
-- **Method:** `POST`
-- **URL:** `/api/auth/login`
-- **Auth:** None
-- **Body:**
-  ```json
-  {
-    "email": "alice@example.com",
-    "password": "password123"
-  }
-  ```
+2. **How circular folder dependencies are prevented:**
+   - Explained tree traversal algorithms (BFS/DFS) across parent-child folder IDs.
+   - Enforcing graph acyclicity at the application service level before committing folder moves prevents orphaned tree loops.
 
-```powershell
-curl -X POST http://localhost:8080/api/auth/login `
-  -H "Content-Type: application/json" `
-  -d '{"email":"alice@example.com","password":"password123"}'
-```
-**Response (`200 OK`):**
-```json
-{
-  "success": true,
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "user": {
-      "id": 1,
-      "email": "alice@example.com"
-    }
-  }
-}
-```
-**Possible Errors:**
-- `401 Unauthorized` (Invalid email or password)
+3. **Database vs Object Storage separation:**
+   - Relational database stores only lightweight metadata (`filename`, `storage_key`, `size`, `folder_id`).
+   - Keeps relational tables compact and cache-friendly while S3 provides virtually infinite scalable binary storage.
 
----
+4. **Cache Invalidation & Consistency:**
+   - Employed cache-aside pattern with automatic invalidation on writes to prevent stale metadata.
+   - Short TTLs (10 min) prevent cache drift in distributed environments.
 
-### 4. Get Current User (`Me`)
-Verifies active JWT token and retrieves user identity.
-- **Method:** `GET`
-- **URL:** `/api/auth/me`
-- **Auth:** Bearer Token
-
-```powershell
-curl http://localhost:8080/api/auth/me `
-  -H "Authorization: Bearer <TOKEN>"
-```
-**Response (`200 OK`):**
-```json
-{
-  "success": true,
-  "data": {
-    "user_id": 1,
-    "email": "alice@example.com"
-  }
-}
-```
-
----
-
-### 5. Upload File
-Uploads a file via `multipart/form-data`. Stores object in MinIO, metadata in PostgreSQL, and enqueues a background processing job.
-- **Method:** `POST`
-- **URL:** `/api/files`
-- **Auth:** Bearer Token
-- **Content-Type:** `multipart/form-data`
-- **Field:** `file`
-
-```powershell
-curl -X POST http://localhost:8080/api/files `
-  -H "Authorization: Bearer <TOKEN>" `
-  -F "file=@document.pdf"
-```
-**Response (`201 Created`):**
-```json
-{
-  "success": true,
-  "file": {
-    "id": 1,
-    "filename": "document.pdf",
-    "size": 120034,
-    "mime_type": "application/pdf",
-    "created_at": "2026-10-06T22:52:00Z"
-  }
-}
-```
-
----
-
-### 6. List Files
-Lists all files owned by the authenticated user.
-- **Method:** `GET`
-- **URL:** `/api/files`
-- **Auth:** Bearer Token
-
-```powershell
-curl http://localhost:8080/api/files `
-  -H "Authorization: Bearer <TOKEN>"
-```
-**Response (`200 OK`):**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": 1,
-      "user_id": 1,
-      "filename": "document.pdf",
-      "storage_key": "users/1/892e4a64-document.pdf",
-      "size": 120034,
-      "mime_type": "application/pdf",
-      "created_at": "2026-10-06T22:52:00Z",
-      "updated_at": "2026-10-06T22:52:00Z"
-    }
-  ]
-}
-```
-
----
-
-### 7. Get File Metadata
-Retrieves metadata for a specific file. Utilizes Redis cache-aside.
-- **Method:** `GET`
-- **URL:** `/api/files/:id`
-- **Auth:** Bearer Token
-
-```powershell
-curl http://localhost:8080/api/files/1 `
-  -H "Authorization: Bearer <TOKEN>"
-```
-**Response (`200 OK`):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "user_id": 1,
-    "filename": "document.pdf",
-    "storage_key": "users/1/892e4a64-document.pdf",
-    "size": 120034,
-    "mime_type": "application/pdf",
-    "created_at": "2026-10-06T22:52:00Z",
-    "updated_at": "2026-10-06T22:52:00Z"
-  }
-}
-```
-**Possible Errors:**
-- `404 Not Found` (File does not exist)
-- `403 Forbidden` (User does not own this file)
-
----
-
-### 8. Download File
-Streams file contents directly from MinIO to the HTTP response with proper download headers.
-- **Method:** `GET`
-- **URL:** `/api/files/:id/download`
-- **Auth:** Bearer Token
-
-```powershell
-curl http://localhost:8080/api/files/1/download `
-  -H "Authorization: Bearer <TOKEN>" `
-  -o downloaded_document.pdf
-```
-**Response Headers:**
-- `Content-Disposition: attachment; filename="document.pdf"`
-- `Content-Type: application/pdf`
-- `Content-Length: 120034`
-
-**Possible Errors:**
-- `404 Not Found` (File does not exist)
-- `403 Forbidden` (Access denied: file owned by another user)
-
----
-
-### 9. Delete File
-Deletes the object from MinIO, removes metadata from PostgreSQL, and invalidates Redis cache.
-- **Method:** `DELETE`
-- **URL:** `/api/files/:id`
-- **Auth:** Bearer Token
-
-```powershell
-curl -X DELETE http://localhost:8080/api/files/1 `
-  -H "Authorization: Bearer <TOKEN>"
-```
-**Response (`200 OK`):**
-```json
-{
-  "success": true,
-  "data": "file deleted successfully"
-}
-```
-**Possible Errors:**
-- `404 Not Found` (File does not exist)
-- `403 Forbidden` (Access denied: file owned by another user)
-
----
-
-## 🔮 Future Production Improvements
-
-1. **Pre-signed URLs:** For large multi-gigabyte uploads, generate pre-signed S3 upload URLs so clients upload directly to MinIO/S3, eliminating API proxy memory and bandwidth consumption.
-2. **Chunked Resumable Uploads:** Implement TUS (tus.io protocol) or multipart upload chunks for unstable client connections.
-3. **Distributed Job Workers:** Transition worker goroutines to an external queue (e.g. Asynq backed by Redis, or RabbitMQ) for multi-instance scaling.
-4. **File Encryption at Rest:** Use MinIO SSE-S3 / SSE-KMS server-side encryption for sensitive files.
-5. **Soft Deletes:** Implement GORM soft deletes (`gorm.DeletedAt`) with a 30-day trash retention policy before permanent deletion.
-6. **Virus Scanning Worker:** Integrate ClamAV in the background worker pool to scan uploaded files before making them downloadable.
-# CloudBox
+5. **Security & Ephemeral Tokens:**
+   - Password hashing with Bcrypt cost 12.
+   - Resource access strictly verifies `user_id` extracted from validated JWT context—never trusted from client payloads.
+   - Public shares use cryptographically secure random tokens (`crypto/rand`) mapped to short-lived (15 min) presigned object URLs.

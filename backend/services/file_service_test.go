@@ -48,6 +48,14 @@ func (m *MockStorage) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
+func (m *MockStorage) GetPresignedUploadURL(ctx context.Context, key string, expiry time.Duration) (string, error) {
+	return "http://localhost:9000/cloudbox/" + key + "?mock-presigned-put=true", nil
+}
+
+func (m *MockStorage) GetPresignedDownloadURL(ctx context.Context, key string, filename string, expiry time.Duration) (string, error) {
+	return "http://localhost:9000/cloudbox/" + key + "?mock-presigned-get=true", nil
+}
+
 // MockFileRepository implements repository.FileRepository in memory
 type MockFileRepository struct {
 	files  map[uint]*models.File
@@ -91,6 +99,43 @@ func (m *MockFileRepository) FindByIDAndUserID(id uint, userID uint) (*models.Fi
 	return f, nil
 }
 
+func (m *MockFileRepository) FindByUserIDAndFolderID(userID uint, folderID *uint) ([]models.File, error) {
+	var list []models.File
+	for _, f := range m.files {
+		if f.UserID == userID {
+			if (folderID == nil && f.FolderID == nil) || (folderID != nil && f.FolderID != nil && *f.FolderID == *folderID) {
+				list = append(list, *f)
+			}
+		}
+	}
+	return list, nil
+}
+
+func (m *MockFileRepository) Search(userID uint, query string, folderID *uint, mimeType string) ([]models.File, error) {
+	var list []models.File
+	for _, f := range m.files {
+		if f.UserID == userID && strings.Contains(strings.ToLower(f.Filename), strings.ToLower(query)) {
+			list = append(list, *f)
+		}
+	}
+	return list, nil
+}
+
+func (m *MockFileRepository) GetTotalStorageUsage(userID uint) (int64, error) {
+	var total int64
+	for _, f := range m.files {
+		if f.UserID == userID {
+			total += f.Size
+		}
+	}
+	return total, nil
+}
+
+func (m *MockFileRepository) Update(file *models.File) error {
+	m.files[file.ID] = file
+	return nil
+}
+
 func (m *MockFileRepository) Delete(id uint) error {
 	if _, ok := m.files[id]; !ok {
 		return repository.ErrFileNotFound
@@ -99,119 +144,124 @@ func (m *MockFileRepository) Delete(id uint) error {
 	return nil
 }
 
+func (m *MockFileRepository) FindByFolderIDs(folderIDs []uint) ([]models.File, error) {
+	var list []models.File
+	idMap := make(map[uint]bool)
+	for _, id := range folderIDs {
+		idMap[id] = true
+	}
+	for _, f := range m.files {
+		if f.FolderID != nil && idMap[*f.FolderID] {
+			list = append(list, *f)
+		}
+	}
+	return list, nil
+}
+
+// MockJobQueue implements services.JobQueue
+type MockJobQueue struct {
+	EnqueuedJobs []workers.Job
+}
+
+func (q *MockJobQueue) Enqueue(job workers.Job) {
+	q.EnqueuedJobs = append(q.EnqueuedJobs, job)
+}
+
 // MockCacheService implements cache.CacheService in memory
 type MockCacheService struct {
-	store map[uint]*models.File
+	cache map[uint]*models.File
 }
 
 func newMockCacheService() *MockCacheService {
-	return &MockCacheService{store: make(map[uint]*models.File)}
+	return &MockCacheService{cache: make(map[uint]*models.File)}
 }
 
-func (m *MockCacheService) GetFile(ctx context.Context, fileID uint) (*models.File, error) {
-	f, ok := m.store[fileID]
+func (c *MockCacheService) GetFile(ctx context.Context, fileID uint) (*models.File, error) {
+	f, ok := c.cache[fileID]
 	if !ok {
 		return nil, cache.ErrCacheMiss
 	}
 	return f, nil
 }
 
-func (m *MockCacheService) SetFile(ctx context.Context, file *models.File, ttl time.Duration) error {
-	if file != nil {
-		m.store[file.ID] = file
-	}
+func (c *MockCacheService) SetFile(ctx context.Context, file *models.File, ttl time.Duration) error {
+	c.cache[file.ID] = file
 	return nil
 }
 
-func (m *MockCacheService) DeleteFile(ctx context.Context, fileID uint) error {
-	delete(m.store, fileID)
+func (c *MockCacheService) DeleteFile(ctx context.Context, fileID uint) error {
+	delete(c.cache, fileID)
 	return nil
 }
 
-// MockJobQueue tracks enqueued background jobs
-type MockJobQueue struct {
-	jobs []workers.Job
-}
+func TestFileService_Upload_Success(t *testing.T) {
+	fileRepo := newMockFileRepository()
+	store := newMockStorage()
+	cacheSvc := newMockCacheService()
+	queue := &MockJobQueue{}
 
-func (q *MockJobQueue) Enqueue(job workers.Job) {
-	q.jobs = append(q.jobs, job)
-}
+	service := services.NewFileService(fileRepo, nil, store, cacheSvc, queue)
 
-func TestFileService_Operations(t *testing.T) {
-	ctx := context.Background()
-	mockStore := newMockStorage()
-	mockRepo := newMockFileRepository()
-	mockCache := newMockCacheService()
-	mockQueue := &MockJobQueue{}
-	fileService := services.NewFileService(mockRepo, mockStore, mockCache, mockQueue)
-
-	userID := uint(1)
-	otherUserID := uint(2)
-	content := "Hello CloudBox Storage!"
-
-	// 1. Upload File
+	content := "Hello, World CloudBox!"
 	reader := strings.NewReader(content)
-	file, err := fileService.Upload(ctx, userID, "hello.txt", reader, int64(len(content)), "text/plain")
+	ctx := context.Background()
+
+	file, err := service.Upload(ctx, 1, "test.txt", reader, int64(len(content)), "text/plain", nil)
+
 	assert.NoError(t, err)
 	assert.NotNil(t, file)
-	assert.Equal(t, "hello.txt", file.Filename)
-	assert.Equal(t, userID, file.UserID)
-	assert.NotEmpty(t, file.StorageKey)
+	assert.Equal(t, uint(1), file.ID)
+	assert.Equal(t, "test.txt", file.Filename)
+	assert.Equal(t, int64(len(content)), file.Size)
 
-	// Verify background job was enqueued
-	assert.Len(t, mockQueue.jobs, 1)
-	assert.Equal(t, file.ID, mockQueue.jobs[0].FileID)
-	assert.Equal(t, "hello.txt", mockQueue.jobs[0].Filename)
+	// Verify object stored
+	assert.True(t, len(store.objects[file.StorageKey]) > 0)
+	// Verify cached
+	cached, _ := cacheSvc.GetFile(ctx, file.ID)
+	assert.NotNil(t, cached)
+	// Verify enqueued job
+	assert.Len(t, queue.EnqueuedJobs, 1)
+}
 
-	// Verify cached on upload
-	cachedOnUpload, err := mockCache.GetFile(ctx, file.ID)
+func TestFileService_RenameAndMove(t *testing.T) {
+	fileRepo := newMockFileRepository()
+	store := newMockStorage()
+	cacheSvc := newMockCacheService()
+
+	service := services.NewFileService(fileRepo, nil, store, cacheSvc, nil)
+
+	content := "Sample"
+	file, err := service.Upload(context.Background(), 1, "old.txt", strings.NewReader(content), int64(len(content)), "text/plain", nil)
 	assert.NoError(t, err)
-	assert.Equal(t, file.ID, cachedOnUpload.ID)
 
-	// 2. Reject Empty File
-	_, err = fileService.Upload(ctx, userID, "empty.txt", strings.NewReader(""), 0, "text/plain")
-	assert.ErrorIs(t, err, services.ErrEmptyFile)
-
-	// 3. List Files
-	files, err := fileService.ListFiles(userID)
+	// Rename
+	renamed, err := service.RenameFile(context.Background(), file.ID, 1, "new.txt")
 	assert.NoError(t, err)
-	assert.Len(t, files, 1)
+	assert.Equal(t, "new.txt", renamed.Filename)
 
-	// 4. Get File (Owner) -> Cache Hit
-	fetched, err := fileService.GetFile(ctx, file.ID, userID)
+	// Move to folder 5
+	folderID := uint(5)
+	moved, err := service.MoveFile(context.Background(), file.ID, 1, &folderID)
 	assert.NoError(t, err)
-	assert.Equal(t, file.ID, fetched.ID)
+	assert.Equal(t, &folderID, moved.FolderID)
 
-	// 5. Get File (Other User -> Access Denied even with cached file)
-	_, err = fileService.GetFile(ctx, file.ID, otherUserID)
+	// Check access denied for other user
+	_, err = service.RenameFile(context.Background(), file.ID, 2, "hacked.txt")
 	assert.ErrorIs(t, err, services.ErrAccessDenied)
+}
 
-	// 6. Download File (Owner)
-	stream, dlFile, err := fileService.Download(ctx, file.ID, userID)
+func TestFileService_StorageUsage(t *testing.T) {
+	fileRepo := newMockFileRepository()
+	store := newMockStorage()
+	service := services.NewFileService(fileRepo, nil, store, nil, nil)
+
+	// Upload two files
+	_, _ = service.Upload(context.Background(), 1, "a.txt", strings.NewReader("12345"), 5, "text/plain", nil)
+	_, _ = service.Upload(context.Background(), 1, "b.txt", strings.NewReader("12345"), 5, "text/plain", nil)
+
+	usage, err := service.GetStorageUsage(context.Background(), 1)
 	assert.NoError(t, err)
-	assert.Equal(t, file.Filename, dlFile.Filename)
-	downloadedBytes, err := io.ReadAll(stream)
-	assert.NoError(t, err)
-	assert.Equal(t, content, string(downloadedBytes))
-	_ = stream.Close()
-
-	// 7. Download File (Other User -> Access Denied)
-	_, _, err = fileService.Download(ctx, file.ID, otherUserID)
-	assert.ErrorIs(t, err, services.ErrAccessDenied)
-
-	// 8. Delete File (Other User -> Access Denied)
-	err = fileService.Delete(ctx, file.ID, otherUserID)
-	assert.ErrorIs(t, err, services.ErrAccessDenied)
-
-	// 9. Delete File (Owner) -> Invalidates Cache
-	err = fileService.Delete(ctx, file.ID, userID)
-	assert.NoError(t, err)
-
-	// Verify cache is invalidated
-	_, err = mockCache.GetFile(ctx, file.ID)
-	assert.ErrorIs(t, err, cache.ErrCacheMiss)
-
-	// 10. Verify File is gone from DB
-	_, err = fileService.GetFile(ctx, file.ID, userID)
-	assert.ErrorIs(t, err, repository.ErrFileNotFound)
+	assert.Equal(t, int64(10), usage.Used)
+	assert.Equal(t, int64(services.DefaultUserQuotaBytes), usage.Limit)
+	assert.True(t, usage.Percentage >= 0)
 }

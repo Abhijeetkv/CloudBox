@@ -72,6 +72,7 @@ func main() {
 		cfg.MinIOAccessKey,
 		cfg.MinIOSecretKey,
 		cfg.MinIOBucket,
+		cfg.MinIOPublicURL,
 		false,
 		logger,
 	)
@@ -85,6 +86,8 @@ func main() {
 	// 6. Initialize Repositories
 	userRepo := repository.NewUserRepository(db)
 	fileRepo := repository.NewFileRepository(db)
+	folderRepo := repository.NewFolderRepository(db)
+	shareRepo := repository.NewShareRepository(db)
 
 	// 7. Initialize and Start Background Worker Pool
 	workerPool := workers.NewWorkerPool(workerCount, workerQueueSize, logger)
@@ -93,14 +96,28 @@ func main() {
 
 	// 8. Initialize Services
 	authService := services.NewAuthService(userRepo, cfg.JWTSecret)
-	fileService := services.NewFileService(fileRepo, minioStore, redisCache, workerPool)
+	folderService := services.NewFolderService(folderRepo, fileRepo, minioStore, redisCache)
+	fileService := services.NewFileService(fileRepo, folderRepo, minioStore, redisCache, workerPool)
+	shareService := services.NewShareService(shareRepo, fileRepo, minioStore, redisCache)
 
 	// 9. Initialize Handlers
 	authHandler := handlers.NewAuthHandler(authService, logger)
 	fileHandler := handlers.NewFileHandler(fileService, logger)
+	folderHandler := handlers.NewFolderHandler(folderService, logger)
+	shareHandler := handlers.NewShareHandler(shareService, logger)
+	storageHandler := handlers.NewStorageHandler(fileService, logger)
 
 	// 10. Setup Routes and Middleware
-	router := routes.SetupRouter(cfg, logger, redisClient, authHandler, fileHandler)
+	router := routes.SetupRouter(
+		cfg,
+		logger,
+		redisClient,
+		authHandler,
+		fileHandler,
+		folderHandler,
+		shareHandler,
+		storageHandler,
+	)
 
 	// 11. Start HTTP Server
 	serverAddr := fmt.Sprintf(":%s", cfg.AppPort)

@@ -17,9 +17,10 @@ import { formatFileSize } from "@/lib/utils";
 interface FileUploadModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  folderId?: number | null;
 }
 
-export function FileUploadModal({ open, onOpenChange }: FileUploadModalProps) {
+export function FileUploadModal({ open, onOpenChange, folderId }: FileUploadModalProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -51,7 +52,7 @@ export function FileUploadModal({ open, onOpenChange }: FileUploadModalProps) {
 
   const handleUpload = () => {
     if (!selectedFile) return;
-    uploadMutation.mutate(selectedFile, {
+    uploadMutation.mutate({ file: selectedFile, folderId }, {
       onSuccess: () => {
         setSelectedFile(null);
         onOpenChange(false);

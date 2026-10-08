@@ -27,9 +27,12 @@ import { toast } from "sonner";
 interface FileGridProps {
   files: FileItem[];
   onViewDetails?: (file: FileItem) => void;
+  onRename?: (file: FileItem) => void;
+  onMove?: (file: FileItem) => void;
+  onShare?: (file: FileItem) => void;
 }
 
-export function FileGrid({ files, onViewDetails }: FileGridProps) {
+export function FileGrid({ files, onViewDetails, onRename, onMove, onShare }: FileGridProps) {
   const [deleteTarget, setDeleteTarget] = useState<FileItem | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const deleteMutation = useDeleteFile();
@@ -88,14 +91,12 @@ export function FileGrid({ files, onViewDetails }: FileGridProps) {
                         View Preview
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem onClick={() => handleCopyLink(file)} className="cursor-pointer text-xs">
-                      {copiedId === file.id ? (
-                        <Check className="mr-2 h-3.5 w-3.5 text-emerald-600" />
-                      ) : (
+                    {onShare && (
+                      <DropdownMenuItem onClick={() => onShare(file)} className="cursor-pointer text-xs">
                         <Link2 className="mr-2 h-3.5 w-3.5 text-slate-500" />
-                      )}
-                      Copy Link
-                    </DropdownMenuItem>
+                        Share Link
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem
                       onClick={() =>
                         downloadMutation.mutate({
@@ -108,6 +109,18 @@ export function FileGrid({ files, onViewDetails }: FileGridProps) {
                       <Download className="mr-2 h-3.5 w-3.5 text-slate-500" />
                       Download
                     </DropdownMenuItem>
+                    {onRename && (
+                      <DropdownMenuItem onClick={() => onRename(file)} className="cursor-pointer text-xs">
+                        <Eye className="mr-2 h-3.5 w-3.5 opacity-0" />
+                        Rename
+                      </DropdownMenuItem>
+                    )}
+                    {onMove && (
+                      <DropdownMenuItem onClick={() => onMove(file)} className="cursor-pointer text-xs">
+                        <Eye className="mr-2 h-3.5 w-3.5 opacity-0" />
+                        Move
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={() => setDeleteTarget(file)}

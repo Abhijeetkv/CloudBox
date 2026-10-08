@@ -2,7 +2,7 @@
 
 import { AppShell } from "@/components/layout/app-shell";
 import { useAuth } from "@/providers/auth-provider";
-import { useFiles } from "@/hooks/use-files";
+import { useFiles, useStorageUsage } from "@/hooks/use-files";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -17,10 +17,11 @@ import { formatFileSize } from "@/lib/utils";
 export default function SettingsPage() {
   const { user, logout } = useAuth();
   const { data: files = [] } = useFiles();
+  const { data: storageUsage } = useStorageUsage();
 
-  const totalBytes = files.reduce((acc, f) => acc + f.size, 0);
-  const quotaLimitBytes = 50 * 1024 * 1024 * 1024;
-  const quotaPercent = Math.min(100, (totalBytes / quotaLimitBytes) * 100);
+  const totalBytes = storageUsage?.used ?? files.reduce((acc, f) => acc + f.size, 0);
+  const quotaLimitBytes = storageUsage?.limit ?? 50 * 1024 * 1024 * 1024;
+  const quotaPercent = storageUsage?.percentage ?? Math.min(100, (totalBytes / quotaLimitBytes) * 100);
 
   const handleSignOut = () => {
     logout();

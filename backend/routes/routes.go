@@ -25,6 +25,9 @@ func SetupRouter(
 	redisClient *redis.Client,
 	authHandler *handlers.AuthHandler,
 	fileHandler *handlers.FileHandler,
+	folderHandler *handlers.FolderHandler,
+	shareHandler *handlers.ShareHandler,
+	storageHandler *handlers.StorageHandler,
 ) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 
@@ -62,14 +65,47 @@ func SetupRouter(
 			auth.GET("/me", middleware.JWTAuth(cfg.JWTSecret), authHandler.Me)
 		}
 
-		// File routes (Protected by JWT)
-		files := api.Group("/files", middleware.JWTAuth(cfg.JWTSecret))
+		// Public share resolution endpoint (No JWT required)
+		api.GET("/shares/:token", shareHandler.Get)
+
+		// Protected routes requiring valid JWT
+		protected := api.Group("", middleware.JWTAuth(cfg.JWTSecret))
 		{
-			files.POST("", fileHandler.Upload)
-			files.GET("", fileHandler.List)
-			files.GET("/:id", fileHandler.Get)
-			files.GET("/:id/download", fileHandler.Download)
-			files.DELETE("/:id", fileHandler.Delete)
+			// File routes
+			files := protected.Group("/files")
+			{
+				files.POST("", fileHandler.Upload)
+				files.POST("/upload-url", fileHandler.GetUploadURL)
+				files.POST("/confirm-upload", fileHandler.ConfirmUpload)
+				files.GET("", fileHandler.List)
+				files.GET("/search", fileHandler.Search)
+				files.GET("/:id", fileHandler.Get)
+				files.PATCH("/:id", fileHandler.Update)
+				files.DELETE("/:id", fileHandler.Delete)
+				files.GET("/:id/download-url", fileHandler.GetDownloadURL)
+				files.GET("/:id/download", fileHandler.Download)
+			}
+
+			// Folder routes
+			folders := protected.Group("/folders")
+			{
+				folders.POST("", folderHandler.Create)
+				folders.GET("", folderHandler.List)
+				folders.GET("/:id", folderHandler.Get)
+				folders.PATCH("/:id", folderHandler.Update)
+				folders.DELETE("/:id", folderHandler.Delete)
+			}
+
+			// Share management routes (authenticated user managing their shares)
+			shares := protected.Group("/shares")
+			{
+				shares.POST("", shareHandler.Create)
+				shares.GET("", shareHandler.List)
+				shares.DELETE("/:id", shareHandler.Delete)
+			}
+
+			// Storage quota endpoint
+			protected.GET("/storage/usage", storageHandler.GetUsage)
 		}
 	}
 
