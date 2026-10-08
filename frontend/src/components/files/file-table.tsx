@@ -58,9 +58,9 @@ export function FileTable({ files, onViewDetails, onRename, onMove, onShare }: F
 
   return (
     <>
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-xs">
+      <div className="overflow-auto max-h-[calc(100vh-270px)] min-h-[300px] rounded-xl border border-slate-200 bg-white shadow-xs">
         <table className="w-full text-xs">
-          <thead className="bg-slate-50/70 border-b border-slate-100 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-100 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
             <tr>
               <th className="px-4 py-3 text-left">Name</th>
               <th className="hidden px-4 py-3 text-left sm:table-cell">Category</th>

@@ -57,12 +57,12 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-60 flex-col border-r border-slate-200/80 bg-white transition-transform duration-300 lg:static lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 flex w-60 flex-col border-r border-slate-200/80 bg-white transition-transform duration-300 lg:static lg:translate-x-0 h-full overflow-hidden shrink-0",
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
         {/* Logo Header */}
-        <div className="flex h-16 items-center justify-between border-b border-slate-100 px-5">
+        <div className="flex h-16 items-center justify-between border-b border-slate-100 px-5 shrink-0">
           <Link href="/dashboard" className="flex items-center gap-2.5" onClick={onClose}>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500 text-white shadow-sm shadow-sky-500/20">
               <Cloud className="h-4.5 w-4.5 fill-white/20" />
@@ -88,7 +88,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         </div>
 
         {/* Navigation Items */}
-        <nav className="flex-1 space-y-1 px-3 py-4">
+        <nav className="flex-1 min-h-0 space-y-1 px-3 py-4 overflow-y-auto">
           {navItems.map((item, index) => {
             const isActive =
               item.label === "Dashboard"
@@ -120,7 +120,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         </nav>
 
         {/* Bottom Section: Storage Quota & User Profile */}
-        <div className="border-t border-slate-100 p-3 space-y-3">
+        <div className="border-t border-slate-100 p-3 space-y-3 shrink-0">
           {/* Storage Quota Card */}
           <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
             <div className="flex items-center justify-between text-[11px] mb-1.5">

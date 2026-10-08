@@ -61,7 +61,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f8fafc] p-4 text-slate-900">
+    <div className="flex h-screen h-[100dvh] w-screen overflow-y-auto items-center justify-center bg-[#f8fafc] p-4 text-slate-900 box-border">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
           <Link href="/dashboard" className="inline-flex items-center gap-2.5">

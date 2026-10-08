@@ -36,15 +36,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100/60 p-0 sm:p-3 md:p-5 flex items-center justify-center">
-      <div className="w-full max-w-[1600px] min-h-screen sm:min-h-[92vh] sm:rounded-2xl border border-slate-200/90 bg-white shadow-sm flex overflow-hidden">
+    <div className="h-screen h-[100dvh] w-screen overflow-hidden bg-slate-100/60 p-0 sm:p-2.5 md:p-3.5 flex items-center justify-center box-border">
+      <div className="w-full max-w-[1600px] h-full sm:rounded-2xl border border-slate-200/90 bg-white shadow-sm flex overflow-hidden">
         <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <div className="flex flex-1 flex-col overflow-hidden min-w-0">
+        <div className="flex flex-1 flex-col overflow-hidden min-w-0 h-full">
           <Header
             onMenuClick={() => setSidebarOpen(true)}
             onUploadClick={() => setUploadModalOpen(true)}
           />
-          <main className="flex-1 overflow-y-auto p-4 sm:p-6 bg-[#fcfdfd]">
+          <main className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 bg-[#fcfdfd]">
             {children}
           </main>
         </div>

@@ -275,7 +275,7 @@ export default function UploadPage() {
             </CardHeader>
 
             <CardContent className="pt-3">
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-slate-100 max-h-[360px] overflow-y-auto pr-2">
                 {queue.map((item) => (
                   <div
                     key={item.id}

@@ -336,9 +336,9 @@ export default function DashboardPage() {
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-auto max-h-[460px]">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50/70 border-b border-slate-100 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-100 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                   <tr>
                     <th className="py-3 px-4">File Name</th>
                     <th className="py-3 px-4">Category</th>

@@ -34,7 +34,7 @@ export function FolderGrid({
       <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
         Folders ({folders.length})
       </h3>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 max-h-48 overflow-y-auto pr-1">
         {folders.map((folder) => (
           <div
             key={folder.id}

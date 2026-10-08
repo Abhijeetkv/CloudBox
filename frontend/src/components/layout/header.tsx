@@ -36,7 +36,7 @@ export function Header({ onMenuClick, onUploadClick, onSearchChange }: HeaderPro
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-100 bg-white px-4 lg:px-6">
+    <header className="shrink-0 sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-100 bg-white px-4 lg:px-6">
       {/* Mobile toggle */}
       <Button
         variant="ghost"

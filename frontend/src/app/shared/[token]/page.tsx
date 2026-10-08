@@ -100,9 +100,9 @@ export default function SharedFilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-between">
+    <div className="h-screen h-[100dvh] w-screen overflow-y-auto bg-slate-50 flex flex-col justify-between box-border">
       {/* Navbar */}
-      <header className="h-16 border-b border-slate-200/80 bg-white/80 backdrop-blur-md px-6 flex items-center justify-between">
+      <header className="h-16 shrink-0 border-b border-slate-200/80 bg-white/80 backdrop-blur-md px-6 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-500 text-white shadow-xs">
             <Cloud className="h-5 w-5" />
@@ -193,7 +193,7 @@ export default function SharedFilePage() {
       </main>
 
       {/* Footer */}
-      <footer className="py-4 text-center text-xs text-slate-400 border-t border-slate-200/60">
+      <footer className="shrink-0 py-4 text-center text-xs text-slate-400 border-t border-slate-200/60">
         CloudBox Portfolio Project • S3-Compatible Direct Object Storage
       </footer>
     </div>

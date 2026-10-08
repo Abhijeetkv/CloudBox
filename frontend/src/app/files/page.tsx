@@ -337,22 +337,24 @@ export default function FilesPage() {
             onShare={(file) => setShareFile(file)}
           />
         ) : (
-          <FileGrid
-            files={filteredAndSortedFiles}
-            onViewDetails={(file) => setPreviewFile(file)}
-            onRename={(file) =>
-              setRenameTarget({ id: file.id, name: file.filename, type: "file" })
-            }
-            onMove={(file) =>
-              setMoveTarget({
-                id: file.id,
-                name: file.filename,
-                type: "file",
-                currentParentId: file.folder_id,
-              })
-            }
-            onShare={(file) => setShareFile(file)}
-          />
+          <div className="overflow-y-auto max-h-[calc(100vh-270px)] pr-1">
+            <FileGrid
+              files={filteredAndSortedFiles}
+              onViewDetails={(file) => setPreviewFile(file)}
+              onRename={(file) =>
+                setRenameTarget({ id: file.id, name: file.filename, type: "file" })
+              }
+              onMove={(file) =>
+                setMoveTarget({
+                  id: file.id,
+                  name: file.filename,
+                  type: "file",
+                  currentParentId: file.folder_id,
+                })
+              }
+              onShare={(file) => setShareFile(file)}
+            />
+          </div>
         )}
       </div>
 

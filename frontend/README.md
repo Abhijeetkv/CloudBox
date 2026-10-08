@@ -4,7 +4,7 @@ A modern, production-grade cloud file storage web application built with **Next.
 
 ---
 
-## 🚀 Features
+## Features
 
 - **Authentication & Security**
   - JWT Bearer authentication with automatic axios interceptor injection
@@ -37,7 +37,7 @@ A modern, production-grade cloud file storage web application built with **Next.
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Framework**: [Next.js 16](https://nextjs.org/) (App Router, Turbopack)
 - **Language**: [TypeScript 5](https://www.typescriptlang.org/)
@@ -51,7 +51,7 @@ A modern, production-grade cloud file storage web application built with **Next.
 
 ---
 
-## ⚙️ Environment Configuration
+## Environment Configuration
 
 Create a `.env.local` file in the `frontend` root:
 
@@ -61,7 +61,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8080
 
 ---
 
-## 🏃 Getting Started
+## Getting Started
 
 ### 1. Install Dependencies
 ```bash
